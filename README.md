@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Le Prono du GOAT
 
-## Getting Started
+Application web de pronostics pour la Coupe du Monde 2026.
+Challenge DEENCODE #02 — Niveau 1.
 
-First, run the development server:
+## Stack
+
+- **Next.js 14** (App Router) + TypeScript
+- **Supabase** (PostgreSQL + Auth + RLS)
+- **Tailwind CSS** (design system personnalisé)
+- **Vercel** (déploiement)
+
+## Lancement en local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+L'app est disponible sur http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts SQL (dans l'ordre, Supabase > SQL Editor)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. `sql/01_schema.sql` — tables, vue classement, triggers, fonction calcul points
+2. `sql/02_rls_policies.sql` — sécurité RLS (verrouillage pronostics inclus)
+3. `sql/03_seed_data.sql` — 104 matchs CdM 2026
 
-## Learn More
+## Architecture
 
-To learn more about Next.js, take a look at the following resources:
+```
+app/
+├── (auth)/         ← login & register
+├── (app)/          ← routes protégées par middleware
+│   ├── dashboard/
+│   ├── leagues/    ← liste, créer, rejoindre, [id], [id]/match/[matchId]
+│   └── admin/matches
+├── auth/           ← callback OAuth & signout
+└── page.tsx        ← landing page
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+components/
+├── prediction-form.tsx   ← saisie score, double sécurité verrouillage
+├── standings-podium.tsx  ← podium animé top 3
+├── bottom-nav.tsx        ← navigation mobile
+└── confetti-client.tsx   ← animation score exact
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+lib/
+├── supabase/client.ts    ← client navigateur
+├── supabase/server.ts    ← client serveur + admin
+├── points.ts             ← calcul points (3/1/0)
+└── utils.ts              ← helpers
+```
 
-## Deploy on Vercel
+## Sécurité — verrouillage des pronostics
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Double couche :
+1. **Client** : vérifie `kickoff_at > now()` avant toute requête
+2. **Base de données (RLS)** : rejette INSERT/UPDATE si `kickoff_at <= now()` même si le frontend est contourné
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Déploiement Vercel
+
+1. `git push origin main`
+2. Connecter le repo sur vercel.com
+3. Ajouter les variables d'environnement :
+
+| Variable | Description |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL de ton projet Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clé publique Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clé secrète (serveur uniquement) |

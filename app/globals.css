@@ -3,25 +3,44 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-bg:           #F8F9FA;
+  --color-surface:      #FFFFFF;
+  --color-primary:      #16A34A;
+  --color-primary-dark: #15803D;
+  --color-gold:         #D97706;
+  --color-gold-light:   #FEF3C7;
+  --color-dark:         #111827;
+  --color-muted:        #6B7280;
+  --color-border:       #E5E7EB;
+  --color-danger:       #DC2626;
+  --color-locked:       #374151;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-dark);
+    font-family: var(--font-inter), sans-serif;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@layer components {
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+  }
+  .btn-secondary {
+    @apply bg-transparent border border-primary text-primary hover:bg-primary hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+  }
+  .card {
+    @apply bg-surface rounded-card shadow-card border border-border;
+  }
+  .badge-locked {
+    @apply bg-locked text-white text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
+  }
+  .badge-exact {
+    @apply bg-gold-light text-gold text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
+  }
+  .score-input {
+    @apply font-mono text-2xl text-center w-12 border-0 border-b-2 border-border focus:border-primary focus:outline-none bg-transparent;
   }
 }
