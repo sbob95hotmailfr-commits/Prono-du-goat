@@ -32,7 +32,7 @@ export default function CreateLeaguePage() {
       .single();
 
     if (leagueError) {
-      setError("Erreur lors de la création. Réessaie.");
+      setError(leagueError.message);
       setLoading(false);
       return;
     }
