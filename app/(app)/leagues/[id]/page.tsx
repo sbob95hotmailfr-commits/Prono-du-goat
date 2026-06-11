@@ -40,8 +40,7 @@ export default async function LeaguePage({ params }: { params: { id: string } })
   const { data: matches } = await supabase
     .from("matches")
     .select("*")
-    .order("kickoff_at", { ascending: true })
-    .limit(20) as any;
+    .order("kickoff_at", { ascending: true }) as any;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
