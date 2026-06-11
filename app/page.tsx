@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Countdown } from "@/components/countdown";
 
 export default function HomePage() {
   return (
@@ -65,12 +66,11 @@ export default function HomePage() {
         <p className="text-gray-500 text-sm mt-8">
           Rejoins ta ligue privée · Pronostique tous les matchs · Grimpe au classement
         </p>
+
+        {/* Compte à rebours */}
+        <Countdown />
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 mt-16 text-gray-600 text-xs">
-        Challenge DEENCODE #02 — Niveau 1
-      </footer>
     </div>
   );
 }
