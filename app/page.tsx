@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Countdown } from "@/components/countdown";
+import { Trophy } from "@/components/trophy";
 
 export default function HomePage() {
   return (
@@ -16,12 +17,8 @@ export default function HomePage() {
       {/* Contenu principal */}
       <main className="relative z-10 text-center max-w-2xl mx-auto">
         {/* Trophée FIFA */}
-        <div className="mb-6 flex justify-center animate-bounce">
-          <img
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/FIFA_World_Cup_Trophy_2002.jpg/180px-FIFA_World_Cup_Trophy_2002.jpg"
-            alt="Coupe du Monde FIFA"
-            className="h-36 w-auto drop-shadow-[0_0_30px_rgba(217,119,6,0.6)]"
-          />
+        <div className="mb-4 flex justify-center animate-bounce">
+          <Trophy />
         </div>
 
         {/* Titre principal — Bebas Neue 72px */}
