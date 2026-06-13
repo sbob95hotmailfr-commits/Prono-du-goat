@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { CopyCode } from "@/components/copy-code";
-import { formatDate, isMatchLocked } from "@/lib/utils";
-import { FlagImage } from "@/components/flag-image";
+import { isMatchLocked } from "@/lib/utils";
+import { MatchCard } from "@/components/match-card";
 import type { LeagueStanding } from "@/types/database";
 
 export default async function LeaguePage({ params }: { params: { id: string } }) {
@@ -103,24 +103,13 @@ export default async function LeaguePage({ params }: { params: { id: string } })
             {upcomingMatches.map((match: any) => {
               const locked = isMatchLocked(match.kickoff_at);
               return (
-                <Link key={match.id} href={`/leagues/${params.id}/match/${match.id}`}
-                  className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between hover:shadow-md hover:border-green-200 transition-all block">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FlagImage team={match.home_team} size="md" />
-                    <span className="font-semibold text-gray-800 text-sm truncate">{match.home_team}</span>
-                    <span className="text-xs text-gray-400 font-bold shrink-0 px-1">vs</span>
-                    <span className="font-semibold text-gray-800 text-sm truncate">{match.away_team}</span>
-                    <FlagImage team={match.away_team} size="md" />
-                  </div>
-                  <div className="shrink-0 ml-2 text-right">
-                    <p className="text-xs text-gray-500">{formatDate(match.kickoff_at)}</p>
-                    {locked ? (
-                      <span className="text-sm">🔒</span>
-                    ) : (
-                      <span className="text-xs text-green-600 font-bold">Pronostiquer →</span>
-                    )}
-                  </div>
-                </Link>
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  leagueId={params.id}
+                  locked={locked}
+                  href={`/leagues/${params.id}/match/${match.id}`}
+                />
               );
             })}
           </div>
@@ -133,21 +122,15 @@ export default async function LeaguePage({ params }: { params: { id: string } })
               <span className="w-1 h-5 bg-gray-400 rounded-full inline-block"></span>
               Résultats
             </h2>
-            <div className="bg-white rounded-xl shadow overflow-hidden">
+            <div className="space-y-2">
               {finishedMatches.map((match: any) => (
-                <Link key={match.id} href={`/leagues/${params.id}/match/${match.id}`}
-                  className="flex items-center justify-between px-4 py-3 border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-2 flex-1">
-                    <FlagImage team={match.home_team} size="sm" />
-                    <span className="text-sm text-gray-700">{match.home_team}</span>
-                    <span className="font-mono font-bold text-gray-800 bg-gray-100 px-2 py-0.5 rounded mx-1">
-                      {match.home_score} – {match.away_score}
-                    </span>
-                    <span className="text-sm text-gray-700">{match.away_team}</span>
-                    <FlagImage team={match.away_team} size="sm" />
-                  </div>
-                  <span className="text-xs text-gray-400 shrink-0 ml-2">{match.stage}</span>
-                </Link>
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  leagueId={params.id}
+                  showScore
+                  href={`/leagues/${params.id}/match/${match.id}`}
+                />
               ))}
             </div>
           </section>

@@ -2,8 +2,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { formatDate, isMatchLocked } from "@/lib/utils";
+import { isMatchLocked } from "@/lib/utils";
 import { FlagImage } from "@/components/flag-image";
+import { MatchCard } from "@/components/match-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -92,33 +93,13 @@ export default async function DashboardPage() {
               {(upcomingMatches as any[]).map((match: any) => {
                 const locked = isMatchLocked(match.kickoff_at);
                 return (
-                  <div key={match.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <FlagImage team={match.home_team} size="md" />
-                        <span className="font-semibold text-gray-800 text-sm">{match.home_team}</span>
-                      </div>
-                      <span className="text-xs text-gray-400 font-bold shrink-0">VS</span>
-                      <div className="flex items-center gap-2">
-                        <FlagImage team={match.away_team} size="md" />
-                        <span className="font-semibold text-gray-800 text-sm">{match.away_team}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-2 shrink-0">
-                      <div className="text-right hidden sm:block">
-                        <p className="text-xs text-gray-500">{formatDate(match.kickoff_at)}</p>
-                        <p className="text-xs text-gray-400">{match.stage}</p>
-                      </div>
-                      {firstLeagueId && !locked ? (
-                        <Link href={`/leagues/${firstLeagueId}/match/${match.id}`}
-                          className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-2 rounded-lg transition-colors whitespace-nowrap">
-                          Pronostiquer
-                        </Link>
-                      ) : locked ? (
-                        <span className="text-lg">🔒</span>
-                      ) : null}
-                    </div>
-                  </div>
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    leagueId={firstLeagueId}
+                    locked={locked}
+                    href={firstLeagueId ? `/leagues/${firstLeagueId}/match/${match.id}` : undefined}
+                  />
                 );
               })}
             </div>
