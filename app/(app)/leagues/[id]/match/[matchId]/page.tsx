@@ -129,11 +129,11 @@ export default async function MatchPage({ params }: { params: { id: string; matc
               </p>
               <p className="text-xs text-blue-400 mt-1">Tu peux le modifier jusqu&apos;au début du match</p>
             </div>
-            <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction} />
+            <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction} kickoffAt={m.kickoff_at} />
           </div>
         ) : (
           // Pas encore de pronostic
-          <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={null} />
+          <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={null} kickoffAt={m.kickoff_at} />
         )}
       </div>
     </div>

@@ -10,9 +10,10 @@ interface PredictionFormProps {
   matchId: string;
   leagueId: string;
   existingPrediction: Prediction | null;
+  kickoffAt: string;
 }
 
-export function PredictionForm({ matchId, leagueId, existingPrediction }: PredictionFormProps) {
+export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffAt }: PredictionFormProps) {
   const router = useRouter();
   const [homeScore, setHomeScore] = useState(existingPrediction?.home_score_pred ?? 0);
   const [awayScore, setAwayScore] = useState(existingPrediction?.away_score_pred ?? 0);
@@ -30,13 +31,7 @@ export function PredictionForm({ matchId, leagueId, existingPrediction }: Predic
     if (!user) return;
 
     // Vérification côté client : le match n'a pas encore commencé
-    const { data: match } = await supabase
-      .from("matches")
-      .select("kickoff_at, status")
-      .eq("id", matchId)
-      .single();
-
-    if (!match || new Date(match.kickoff_at) <= new Date()) {
+    if (new Date(kickoffAt) <= new Date()) {
       setError("⚠️ Ce match a déjà commencé. Pronostic impossible.");
       setLoading(false);
       return;
