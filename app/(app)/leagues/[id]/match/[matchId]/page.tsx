@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatDate, isMatchLocked } from "@/lib/utils";
 import { PredictionForm } from "@/components/prediction-form";
 import { ConfettiClient } from "@/components/confetti-client";
+import { FlagImage } from "@/components/flag-image";
 import type { Prediction } from "@/types/database";
 
 export default async function MatchPage({ params }: { params: { id: string; matchId: string } }) {
@@ -13,101 +14,107 @@ export default async function MatchPage({ params }: { params: { id: string; matc
   if (!user) redirect("/auth/login");
 
   const { data: membership } = await supabase
-    .from("league_members")
-    .select("*")
-    .eq("league_id", params.id)
-    .eq("user_id", user.id)
-    .single() as any;
-
+    .from("league_members").select("*")
+    .eq("league_id", params.id).eq("user_id", user.id).single() as any;
   if (!membership) notFound();
 
   const { data: match } = await supabase
-    .from("matches")
-    .select("*")
-    .eq("id", params.matchId)
-    .single() as any;
-
+    .from("matches").select("*").eq("id", params.matchId).single() as any;
   if (!match) notFound();
 
   const { data: predictionData } = await supabase
-    .from("predictions")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("match_id", params.matchId)
-    .eq("league_id", params.id)
-    .single() as any;
+    .from("predictions").select("*")
+    .eq("user_id", user.id).eq("match_id", params.matchId)
+    .eq("league_id", params.id).single() as any;
 
   const prediction = predictionData as Prediction | null;
   const m = match as any;
-
   const locked = isMatchLocked(m.kickoff_at) || prediction?.is_locked;
   const finished = m.status === "finished";
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href={`/leagues/${params.id}`} className="text-muted hover:text-dark">←</Link>
-        <span className="text-sm text-muted">{m.stage}</span>
-      </div>
-
-      {/* Affichage du match */}
-      <div className="card p-6 mb-4 text-center">
-        <p className="text-xs text-muted mb-4">{formatDate(m.kickoff_at)}</p>
-        <div className="flex items-center justify-center gap-4">
-          <div className="flex-1 text-center">
-            <div className="text-5xl mb-2">{m.home_flag}</div>
-            <p className="font-semibold text-dark text-sm">{m.home_team}</p>
-          </div>
-          {finished && m.home_score != null ? (
-            <div className="text-center px-4">
-              <p className="font-mono text-4xl font-bold text-dark">{m.home_score} – {m.away_score}</p>
-              <p className="text-xs text-muted mt-1">Score final</p>
-            </div>
-          ) : (
-            <div className="text-muted font-bold text-xl px-4">VS</div>
-          )}
-          <div className="flex-1 text-center">
-            <div className="text-5xl mb-2">{m.away_flag}</div>
-            <p className="font-semibold text-dark text-sm">{m.away_team}</p>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-5">
+        <div className="max-w-md mx-auto flex items-center gap-3">
+          <Link href={`/leagues/${params.id}`} className="text-gray-400 hover:text-white text-xl">←</Link>
+          <span className="text-sm text-gray-300">{m.stage}</span>
         </div>
       </div>
 
-      {/* Zone pronostic */}
-      {finished && prediction ? (
-        <div className="card p-6 text-center">
-          <h2 className="font-bold text-dark mb-4">Mon pronostic</h2>
-          <p className="font-mono text-4xl font-bold text-primary mb-2">
-            {prediction.home_score_pred} – {prediction.away_score_pred}
-          </p>
-          <div className="mt-4">
+      <div className="max-w-md mx-auto px-4 py-5">
+        {/* Affiche du match */}
+        <div className="bg-white rounded-2xl shadow p-6 mb-4">
+          <p className="text-xs text-gray-500 text-center mb-5 uppercase tracking-wide">{formatDate(m.kickoff_at)}</p>
+          <div className="flex items-center justify-center gap-4">
+            <div className="flex-1 text-center">
+              <div className="flex justify-center mb-3">
+                <FlagImage team={m.home_team} size="lg" className="rounded-lg shadow-md w-16 h-12" />
+              </div>
+              <p className="font-bold text-gray-800">{m.home_team}</p>
+            </div>
+
+            {finished && m.home_score != null ? (
+              <div className="text-center px-4">
+                <p className="font-mono text-4xl font-bold text-gray-800">{m.home_score} – {m.away_score}</p>
+                <p className="text-xs text-gray-400 mt-1">Score final</p>
+              </div>
+            ) : (
+              <div className="text-center px-4">
+                <span className="text-gray-300 font-bold text-2xl">VS</span>
+              </div>
+            )}
+
+            <div className="flex-1 text-center">
+              <div className="flex justify-center mb-3">
+                <FlagImage team={m.away_team} size="lg" className="rounded-lg shadow-md w-16 h-12" />
+              </div>
+              <p className="font-bold text-gray-800">{m.away_team}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Zone pronostic */}
+        {finished && prediction ? (
+          <div className="bg-white rounded-2xl shadow p-6 text-center">
+            <h2 className="font-bold text-gray-800 mb-4">Mon pronostic</h2>
+            <p className="font-mono text-5xl font-bold text-green-600 mb-4">
+              {prediction.home_score_pred} – {prediction.away_score_pred}
+            </p>
             {prediction.points_earned === 3 && (
               <>
-                <div className="badge-exact text-base px-4 py-2 mx-auto inline-flex">⭐ Score exact — +3 points !</div>
+                <div className="bg-yellow-100 text-yellow-700 font-bold px-4 py-2 rounded-full inline-flex items-center gap-2">
+                  ⭐ Score exact — +3 points !
+                </div>
                 <ConfettiClient />
               </>
             )}
-            {prediction.points_earned === 1 && <span className="text-primary font-semibold">✓ Bon résultat — +1 point</span>}
-            {prediction.points_earned === 0 && <span className="text-muted">✗ Raté — 0 point</span>}
+            {prediction.points_earned === 1 && (
+              <div className="bg-green-100 text-green-700 font-bold px-4 py-2 rounded-full inline-flex">✓ Bon résultat — +1 point</div>
+            )}
+            {prediction.points_earned === 0 && (
+              <div className="bg-gray-100 text-gray-500 font-bold px-4 py-2 rounded-full inline-flex">✗ Raté — 0 point</div>
+            )}
           </div>
-        </div>
-      ) : locked ? (
-        <div className="card p-6 text-center">
-          <div className="badge-locked text-sm px-4 py-2 mx-auto inline-flex mb-3">🔒 Pronostic verrouillé</div>
-          {prediction ? (
-            <div className="mt-3">
-              <p className="text-muted text-sm mb-1">Ton pronostic :</p>
-              <p className="font-mono text-3xl font-bold text-dark">
-                {prediction.home_score_pred} – {prediction.away_score_pred}
-              </p>
-            </div>
-          ) : (
-            <p className="text-muted text-sm mt-2">Tu n&apos;as pas pronostiqué ce match.</p>
-          )}
-        </div>
-      ) : (
-        <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction ?? null} />
-      )}
+        ) : locked ? (
+          <div className="bg-white rounded-2xl shadow p-6 text-center">
+            <div className="text-4xl mb-3">🔒</div>
+            <p className="font-bold text-gray-700 mb-1">Pronostic verrouillé</p>
+            {prediction ? (
+              <div className="mt-4">
+                <p className="text-gray-500 text-sm mb-2">Ton pronostic :</p>
+                <p className="font-mono text-4xl font-bold text-green-600">
+                  {prediction.home_score_pred} – {prediction.away_score_pred}
+                </p>
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm mt-2">Tu n&apos;as pas pronostiqué ce match.</p>
+            )}
+          </div>
+        ) : (
+          <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction ?? null} />
+        )}
+      </div>
     </div>
   );
 }
