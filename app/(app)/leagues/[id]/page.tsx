@@ -31,6 +31,13 @@ export default async function LeaguePage({ params }: { params: { id: string } })
     .from("matches").select("*")
     .order("kickoff_at", { ascending: true }) as any;
 
+  // Charger les pronostics de l'utilisateur pour cette ligue
+  const { data: userPredictions } = await supabase
+    .from("predictions").select("match_id")
+    .eq("user_id", user.id).eq("league_id", params.id) as any;
+
+  const predictedMatchIds = new Set((userPredictions ?? []).map((p: any) => p.match_id));
+
   const allMatches = (matches as any[]) ?? [];
   const finishedMatches = allMatches.filter((m: any) => m.status === "finished");
   const upcomingMatches = allMatches.filter((m: any) => m.status !== "finished");
@@ -102,12 +109,14 @@ export default async function LeaguePage({ params }: { params: { id: string } })
           <div className="space-y-2">
             {upcomingMatches.map((match: any) => {
               const locked = isMatchLocked(match.kickoff_at);
+              const predicted = predictedMatchIds.has(match.id);
               return (
                 <MatchCard
                   key={match.id}
                   match={match}
                   leagueId={params.id}
                   locked={locked}
+                  predicted={predicted}
                   href={`/leagues/${params.id}/match/${match.id}`}
                 />
               );

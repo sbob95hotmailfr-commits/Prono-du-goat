@@ -9,6 +9,7 @@ interface MatchCardProps {
   leagueId?: string;
   locked?: boolean;
   showScore?: boolean;
+  predicted?: boolean;
   href?: string;
 }
 
@@ -25,7 +26,7 @@ function RoundFlag({ team }: { team: string }) {
   );
 }
 
-export function MatchCard({ match, leagueId, locked, showScore, href }: MatchCardProps) {
+export function MatchCard({ match, leagueId, locked, showScore, predicted, href }: MatchCardProps) {
   const content = (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md hover:border-green-200 transition-all overflow-hidden">
       {/* Date + groupe */}
@@ -68,6 +69,10 @@ export function MatchCard({ match, leagueId, locked, showScore, href }: MatchCar
               <span className="text-xs text-gray-400">🔒 Verrouillé</span>
             ) : showScore ? (
               <span className="text-xs text-gray-400 font-semibold">Voir mon pronostic →</span>
+            ) : predicted ? (
+              <span className="text-xs text-blue-600 font-bold bg-blue-50 px-3 py-1 rounded-full">
+                ✓ Pronostic enregistré →
+              </span>
             ) : (
               <span className="text-xs text-green-600 font-bold bg-green-50 px-3 py-1 rounded-full">
                 Pronostiquer →
