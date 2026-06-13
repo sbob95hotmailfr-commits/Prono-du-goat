@@ -75,17 +75,18 @@ export function PredictionForm({ matchId, leagueId, existingPrediction }: Predic
     }
 
     setSuccess(true);
-    setTimeout(() => router.refresh(), 800);
+    setTimeout(() => router.push(`/leagues/${leagueId}`), 1200);
   }
 
   if (success) {
     return (
-      <div className="card p-6 text-center">
+      <div className="bg-white rounded-2xl shadow p-6 text-center">
         <p className="text-4xl mb-2">✅</p>
-        <p className="font-bold text-dark">Pronostic enregistré !</p>
-        <p className="font-mono text-2xl font-bold text-primary mt-2">
+        <p className="font-bold text-gray-800">Pronostic enregistré !</p>
+        <p className="font-mono text-2xl font-bold text-green-600 mt-2">
           {homeScore} – {awayScore}
         </p>
+        <p className="text-xs text-gray-400 mt-3">Redirection en cours…</p>
       </div>
     );
   }

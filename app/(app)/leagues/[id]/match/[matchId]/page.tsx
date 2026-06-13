@@ -76,6 +76,7 @@ export default async function MatchPage({ params }: { params: { id: string; matc
 
         {/* Zone pronostic */}
         {finished && prediction ? (
+          // Match terminé avec pronostic → afficher résultat + points
           <div className="bg-white rounded-2xl shadow p-6 text-center">
             <h2 className="font-bold text-gray-800 mb-4">Mon pronostic</h2>
             <p className="font-mono text-5xl font-bold text-green-600 mb-4">
@@ -96,23 +97,43 @@ export default async function MatchPage({ params }: { params: { id: string; matc
               <div className="bg-gray-100 text-gray-500 font-bold px-4 py-2 rounded-full inline-flex">✗ Raté — 0 point</div>
             )}
           </div>
-        ) : locked ? (
+        ) : finished && !prediction ? (
+          // Match terminé sans pronostic
+          <div className="bg-white rounded-2xl shadow p-6 text-center">
+            <p className="text-gray-400 text-sm">Tu n&apos;as pas pronostiqué ce match.</p>
+          </div>
+        ) : locked && prediction ? (
+          // Match verrouillé avec pronostic → afficher le pronostic
+          <div className="bg-white rounded-2xl shadow p-6 text-center">
+            <div className="text-3xl mb-2">🔒</div>
+            <p className="font-bold text-gray-700 mb-1">Pronostic verrouillé</p>
+            <p className="text-gray-500 text-sm mb-3">Ton pronostic :</p>
+            <p className="font-mono text-4xl font-bold text-green-600">
+              {prediction.home_score_pred} – {prediction.away_score_pred}
+            </p>
+          </div>
+        ) : locked && !prediction ? (
+          // Match verrouillé sans pronostic
           <div className="bg-white rounded-2xl shadow p-6 text-center">
             <div className="text-4xl mb-3">🔒</div>
             <p className="font-bold text-gray-700 mb-1">Pronostic verrouillé</p>
-            {prediction ? (
-              <div className="mt-4">
-                <p className="text-gray-500 text-sm mb-2">Ton pronostic :</p>
-                <p className="font-mono text-4xl font-bold text-green-600">
-                  {prediction.home_score_pred} – {prediction.away_score_pred}
-                </p>
-              </div>
-            ) : (
-              <p className="text-gray-400 text-sm mt-2">Tu n&apos;as pas pronostiqué ce match.</p>
-            )}
+            <p className="text-gray-400 text-sm mt-2">Tu n&apos;as pas pronostiqué ce match.</p>
+          </div>
+        ) : prediction ? (
+          // Match pas encore verrouillé, pronostic existant → permettre modification
+          <div>
+            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 mb-4 text-center">
+              <p className="text-sm text-blue-600 font-semibold mb-1">✓ Pronostic enregistré</p>
+              <p className="font-mono text-3xl font-bold text-blue-700">
+                {prediction.home_score_pred} – {prediction.away_score_pred}
+              </p>
+              <p className="text-xs text-blue-400 mt-1">Tu peux le modifier jusqu&apos;au début du match</p>
+            </div>
+            <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction} />
           </div>
         ) : (
-          <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction ?? null} />
+          // Pas encore de pronostic
+          <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={null} />
         )}
       </div>
     </div>
