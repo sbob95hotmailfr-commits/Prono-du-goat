@@ -26,8 +26,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Scores invalides" }, { status: 400 });
   }
 
-  // Client admin pour bypasser RLS
-  const adminSupabase = await createAdminClient();
+  // Client admin pour bypasser RLS (service role key, sans cookies)
+  const adminSupabase = createAdminClient();
 
   // Mettre à jour le score
   const { error: updateError } = await adminSupabase
