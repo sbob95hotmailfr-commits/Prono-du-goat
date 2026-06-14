@@ -52,6 +52,5 @@ export const FLAG_CODES: Record<string, string> = {
 export function getFlagUrl(teamName: string, size: "sm" | "md" | "lg" = "md"): string {
   const code = FLAG_CODES[teamName];
   if (!code) return "";
-  const sizes = { sm: "20x15", md: "32x24", lg: "48x36" };
-  return `https://flagcdn.com/${sizes[size]}/${code}.png`;
+  return `https://flagcdn.com/${code}.svg`;
 }
