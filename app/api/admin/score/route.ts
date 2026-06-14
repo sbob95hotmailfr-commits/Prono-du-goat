@@ -10,11 +10,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  // Vérifier que l'utilisateur est admin d'au moins une ligue
   const { data: adminLeagues } = await supabase
-    .from("leagues")
-    .select("id")
-    .eq("admin_id", user.id);
+    .from("leagues").select("id").eq("admin_id", user.id);
 
   if (!adminLeagues?.length) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
@@ -26,29 +23,48 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Scores invalides" }, { status: 400 });
   }
 
-  // Client admin pour bypasser RLS (service role key, sans cookies)
   const adminSupabase = createAdminClient();
 
-  // Mettre à jour le score et vérifier que l'update a bien affecté une ligne
-  const { data: updatedMatch, error: updateError } = await adminSupabase
+  // 1. Mettre à jour le match
+  const { error: updateError } = await adminSupabase
     .from("matches")
-    .update({ home_score: homeScore, away_score: awayScore, status: "finished" as const })
-    .eq("id", matchId)
-    .select("id, home_score, away_score")
-    .single();
+    .update({ home_score: homeScore, away_score: awayScore, status: "finished" })
+    .eq("id", matchId);
 
-  if (updateError || !updatedMatch) {
-    return NextResponse.json({
-      error: updateError?.message ?? "Match introuvable ou mise à jour bloquée (vérifier SUPABASE_SERVICE_ROLE_KEY dans Vercel)"
-    }, { status: 500 });
+  if (updateError) {
+    return NextResponse.json({ error: "Erreur mise à jour match: " + updateError.message }, { status: 500 });
   }
 
-  // Calculer les points via la fonction SQL
-  const { error: rpcError } = await adminSupabase
-    .rpc("calculate_points_for_match", { p_match_id: matchId });
+  // 2. Récupérer tous les pronostics pour ce match
+  const { data: predictions, error: predError } = await adminSupabase
+    .from("predictions")
+    .select("id, home_score_pred, away_score_pred")
+    .eq("match_id", matchId);
 
-  if (rpcError) {
-    return NextResponse.json({ error: rpcError.message }, { status: 500 });
+  if (predError) {
+    return NextResponse.json({ error: "Erreur lecture pronostics: " + predError.message }, { status: 500 });
+  }
+
+  // 3. Calculer et mettre à jour les points pour chaque pronostic
+  for (const pred of (predictions ?? [])) {
+    let points = 0;
+
+    if (pred.home_score_pred === homeScore && pred.away_score_pred === awayScore) {
+      // Score exact → 3 points
+      points = 3;
+    } else if (
+      (pred.home_score_pred > pred.away_score_pred && homeScore > awayScore) ||
+      (pred.home_score_pred < pred.away_score_pred && homeScore < awayScore) ||
+      (pred.home_score_pred === pred.away_score_pred && homeScore === awayScore)
+    ) {
+      // Bon résultat → 1 point
+      points = 1;
+    }
+
+    await adminSupabase
+      .from("predictions")
+      .update({ points_earned: points, is_locked: true })
+      .eq("id", pred.id);
   }
 
   return NextResponse.json({ success: true });
