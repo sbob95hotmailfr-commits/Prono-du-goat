@@ -29,14 +29,18 @@ export async function POST(request: Request) {
   // Client admin pour bypasser RLS (service role key, sans cookies)
   const adminSupabase = createAdminClient();
 
-  // Mettre à jour le score
-  const { error: updateError } = await adminSupabase
+  // Mettre à jour le score et vérifier que l'update a bien affecté une ligne
+  const { data: updatedMatch, error: updateError } = await adminSupabase
     .from("matches")
     .update({ home_score: homeScore, away_score: awayScore, status: "finished" as const })
-    .eq("id", matchId);
+    .eq("id", matchId)
+    .select("id, home_score, away_score")
+    .single();
 
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
+  if (updateError || !updatedMatch) {
+    return NextResponse.json({
+      error: updateError?.message ?? "Match introuvable ou mise à jour bloquée (vérifier SUPABASE_SERVICE_ROLE_KEY dans Vercel)"
+    }, { status: 500 });
   }
 
   // Calculer les points via la fonction SQL
