@@ -17,7 +17,7 @@ export default function HomePage() {
       {/* Contenu principal */}
       <main className="relative z-10 text-center max-w-2xl mx-auto">
         {/* Trophée FIFA */}
-        <div className="mb-4 flex justify-center animate-bounce">
+        <div className="mb-4 flex justify-center">
           <Trophy />
         </div>
 

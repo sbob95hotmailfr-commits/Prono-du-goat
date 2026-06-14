@@ -44,17 +44,9 @@ export default async function DashboardPage() {
       {/* Header sombre */}
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-6">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <img
-              src="/wc2026.png"
-              alt="FIFA World Cup 2026"
-              className="w-16 h-16 object-contain"
-              style={{ animation: "spin-cup 4s linear infinite" }}
-            />
-            <div>
-              <p className="text-gray-400 text-xs uppercase tracking-widest mb-0.5">Coupe du Monde 2026</p>
-              <h1 className="text-xl font-bold">Bonjour {profile?.username} 👋</h1>
-            </div>
+          <div>
+            <p className="text-gray-400 text-xs uppercase tracking-widest mb-0.5">Coupe du Monde 2026</p>
+            <h1 className="text-xl font-bold">Bonjour {profile?.username} 👋</h1>
           </div>
           <form action="/auth/signout" method="POST">
             <button type="submit" className="text-xs text-gray-400 hover:text-white border border-gray-600 rounded-lg px-3 py-1.5 transition-colors">
@@ -63,12 +55,6 @@ export default async function DashboardPage() {
           </form>
         </div>
       </div>
-      <style>{`
-        @keyframes spin-cup {
-          0% { transform: rotateY(0deg); }
-          100% { transform: rotateY(360deg); }
-        }
-      `}</style>
 
       <div className="max-w-2xl mx-auto px-4 py-5">
         {/* Stats */}
