@@ -29,8 +29,8 @@ export function AdminScoreForm({ matchId, homeFlag, awayFlag }: AdminScoreFormPr
     });
 
     if (!res.ok) {
-      const data = await res.json();
-      setError(data.error ?? "Erreur serveur");
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? `Erreur serveur (${res.status})`);
       setLoading(false);
       return;
     }

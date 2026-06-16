@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { calculatePoints } from "@/lib/points";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -17,25 +18,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  const { matchId, homeScore, awayScore } = await request.json();
+  const body = await request.json();
+  const { matchId } = body;
+  const homeScore = Number(body.homeScore);
+  const awayScore = Number(body.awayScore);
 
-  if (typeof homeScore !== "number" || typeof awayScore !== "number") {
-    return NextResponse.json({ error: "Scores invalides" }, { status: 400 });
+  if (isNaN(homeScore) || isNaN(awayScore) || !matchId) {
+    return NextResponse.json({ error: `Données invalides: matchId=${matchId} homeScore=${homeScore} awayScore=${awayScore}` }, { status: 400 });
   }
 
   const adminSupabase = createAdminClient();
 
   // 1. Mettre à jour le match
-  const { error: updateError } = await adminSupabase
+  const { error: updateError, count } = await adminSupabase
     .from("matches")
     .update({ home_score: homeScore, away_score: awayScore, status: "finished" })
     .eq("id", matchId);
 
   if (updateError) {
-    return NextResponse.json({ error: "Erreur mise à jour match: " + updateError.message }, { status: 500 });
+    return NextResponse.json({ error: "Erreur UPDATE match: " + updateError.message }, { status: 500 });
   }
 
-  // 2. Récupérer tous les pronostics pour ce match
+  // 2. Récupérer les pronostics pour ce match
   const { data: predictions, error: predError } = await adminSupabase
     .from("predictions")
     .select("id, home_score_pred, away_score_pred")
@@ -46,26 +50,20 @@ export async function POST(request: Request) {
   }
 
   // 3. Calculer et mettre à jour les points pour chaque pronostic
-  for (const pred of (predictions ?? [])) {
-    let points = 0;
-
-    if (pred.home_score_pred === homeScore && pred.away_score_pred === awayScore) {
-      // Score exact → 3 points
-      points = 3;
-    } else if (
-      (pred.home_score_pred > pred.away_score_pred && homeScore > awayScore) ||
-      (pred.home_score_pred < pred.away_score_pred && homeScore < awayScore) ||
-      (pred.home_score_pred === pred.away_score_pred && homeScore === awayScore)
-    ) {
-      // Bon résultat → 1 point
-      points = 1;
-    }
-
-    await adminSupabase
+  const updates = (predictions ?? []).map((pred) => {
+    const points = calculatePoints(
+      pred.home_score_pred,
+      pred.away_score_pred,
+      homeScore,
+      awayScore
+    );
+    return adminSupabase
       .from("predictions")
       .update({ points_earned: points, is_locked: true })
       .eq("id", pred.id);
-  }
+  });
 
-  return NextResponse.json({ success: true });
+  await Promise.all(updates);
+
+  return NextResponse.json({ success: true, updated: predictions?.length ?? 0 });
 }
