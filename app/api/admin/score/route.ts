@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { calculatePoints } from "@/lib/points";
 
 export async function POST(request: Request) {
+  // Vérifier l'authentification avec le client normal
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -11,11 +12,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
-  const { data: adminLeagues } = await supabase
+  // Utiliser adminSupabase pour tout (bypass RLS garanti)
+  const adminSupabase = createAdminClient();
+
+  // Vérifier que l'utilisateur est admin d'au moins une ligue
+  const { data: adminLeagues, error: leagueError } = await adminSupabase
     .from("leagues").select("id").eq("admin_id", user.id);
 
-  if (!adminLeagues?.length) {
-    return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+  if (leagueError || !adminLeagues?.length) {
+    return NextResponse.json({ error: "Accès refusé — tu n'es admin d'aucune ligue" }, { status: 403 });
   }
 
   const body = await request.json();
@@ -27,17 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Données invalides" }, { status: 400 });
   }
 
-  const adminSupabase = createAdminClient();
-
-  // Protection double soumission : vérifier que le match n'est pas déjà terminé
-  const { data: existingMatch } = await adminSupabase
-    .from("matches").select("status").eq("id", matchId).single() as any;
-
-  if ((existingMatch as any)?.status === "finished") {
-    return NextResponse.json({ error: "Ce match a déjà un score enregistré" }, { status: 409 });
-  }
-
-  // 1. Mettre à jour le match
+  // Mettre à jour le match (score + status finished)
   const { error: updateError } = await adminSupabase
     .from("matches")
     .update({ home_score: homeScore, away_score: awayScore, status: "finished" })
@@ -47,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Erreur mise à jour match : " + updateError.message }, { status: 500 });
   }
 
-  // 2. Récupérer les pronostics pour ce match
+  // Récupérer tous les pronostics pour ce match
   const { data: predictions, error: predError } = await adminSupabase
     .from("predictions")
     .select("id, home_score_pred, away_score_pred")
@@ -57,9 +52,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Erreur lecture pronostics : " + predError.message }, { status: 500 });
   }
 
-  // 3. Calculer et mettre à jour les points — avec gestion d'erreur individuelle
+  if (!predictions?.length) {
+    return NextResponse.json({ success: true, updated: 0, message: "Score enregistré — aucun pronostic à calculer" });
+  }
+
+  // Calculer et mettre à jour les points pour chaque pronostic
   const results = await Promise.allSettled(
-    (predictions ?? []).map((pred) => {
+    predictions.map((pred) => {
       const points = calculatePoints(
         pred.home_score_pred,
         pred.away_score_pred,
@@ -80,5 +79,5 @@ export async function POST(request: Request) {
     }, { status: 207 });
   }
 
-  return NextResponse.json({ success: true, updated: predictions?.length ?? 0 });
+  return NextResponse.json({ success: true, updated: predictions.length });
 }

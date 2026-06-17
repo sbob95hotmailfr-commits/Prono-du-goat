@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { AdminScoreForm } from "@/components/admin-score-form";
+import { AdminRecalculateBtn } from "@/components/admin-recalculate-btn";
 import type { Match } from "@/types/database";
 
 export default async function AdminMatchesPage() {
@@ -33,9 +34,13 @@ export default async function AdminMatchesPage() {
         <a href="/dashboard" className="text-sm text-muted hover:text-dark">← Dashboard</a>
       </div>
 
-      <p className="text-sm text-muted mb-6">
+      <p className="text-sm text-muted mb-4">
         Saisis le score final d&apos;un match. Les points seront calculés automatiquement.
       </p>
+
+      <div className="mb-6">
+        <AdminRecalculateBtn />
+      </div>
 
       <section className="mb-8">
         <h2 className="font-bold text-dark mb-3">Matchs en attente ({upcoming.length})</h2>
