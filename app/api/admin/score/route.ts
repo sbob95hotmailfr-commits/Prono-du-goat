@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { calculatePoints } from "@/lib/points";
@@ -23,20 +22,28 @@ export async function POST(request: Request) {
   const homeScore = Number(body.homeScore);
   const awayScore = Number(body.awayScore);
 
-  if (isNaN(homeScore) || isNaN(awayScore) || !matchId) {
-    return NextResponse.json({ error: `Données invalides: matchId=${matchId} homeScore=${homeScore} awayScore=${awayScore}` }, { status: 400 });
+  if (!matchId || isNaN(homeScore) || isNaN(awayScore)) {
+    return NextResponse.json({ error: "Données invalides" }, { status: 400 });
   }
 
   const adminSupabase = createAdminClient();
 
+  // Protection double soumission : vérifier que le match n'est pas déjà terminé
+  const { data: existingMatch } = await adminSupabase
+    .from("matches").select("status").eq("id", matchId).single();
+
+  if (existingMatch?.status === "finished") {
+    return NextResponse.json({ error: "Ce match a déjà un score enregistré" }, { status: 409 });
+  }
+
   // 1. Mettre à jour le match
-  const { error: updateError, count } = await adminSupabase
+  const { error: updateError } = await adminSupabase
     .from("matches")
     .update({ home_score: homeScore, away_score: awayScore, status: "finished" })
     .eq("id", matchId);
 
   if (updateError) {
-    return NextResponse.json({ error: "Erreur UPDATE match: " + updateError.message }, { status: 500 });
+    return NextResponse.json({ error: "Erreur mise à jour match : " + updateError.message }, { status: 500 });
   }
 
   // 2. Récupérer les pronostics pour ce match
@@ -46,24 +53,31 @@ export async function POST(request: Request) {
     .eq("match_id", matchId);
 
   if (predError) {
-    return NextResponse.json({ error: "Erreur lecture pronostics: " + predError.message }, { status: 500 });
+    return NextResponse.json({ error: "Erreur lecture pronostics : " + predError.message }, { status: 500 });
   }
 
-  // 3. Calculer et mettre à jour les points pour chaque pronostic
-  const updates = (predictions ?? []).map((pred) => {
-    const points = calculatePoints(
-      pred.home_score_pred,
-      pred.away_score_pred,
-      homeScore,
-      awayScore
-    );
-    return adminSupabase
-      .from("predictions")
-      .update({ points_earned: points, is_locked: true })
-      .eq("id", pred.id);
-  });
+  // 3. Calculer et mettre à jour les points — avec gestion d'erreur individuelle
+  const results = await Promise.allSettled(
+    (predictions ?? []).map((pred) => {
+      const points = calculatePoints(
+        pred.home_score_pred,
+        pred.away_score_pred,
+        homeScore,
+        awayScore
+      );
+      return adminSupabase
+        .from("predictions")
+        .update({ points_earned: points, is_locked: true })
+        .eq("id", pred.id);
+    })
+  );
 
-  await Promise.all(updates);
+  const failures = results.filter((r) => r.status === "rejected").length;
+  if (failures > 0) {
+    return NextResponse.json({
+      error: `Score enregistré mais ${failures} pronostic(s) n'ont pas pu être mis à jour`
+    }, { status: 207 });
+  }
 
   return NextResponse.json({ success: true, updated: predictions?.length ?? 0 });
 }

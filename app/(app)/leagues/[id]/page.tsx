@@ -7,22 +7,23 @@ import { isMatchLocked } from "@/lib/utils";
 import { MatchCard } from "@/components/match-card";
 import type { LeagueStanding } from "@/types/database";
 
-export default async function LeaguePage({ params }: { params: { id: string } }) {
+export default async function LeaguePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
   const { data: membership } = await supabase
     .from("league_members").select("*")
-    .eq("league_id", params.id).eq("user_id", user.id).single() as any;
+    .eq("league_id", id).eq("user_id", user.id).single() as any;
   if (!membership) notFound();
 
   const { data: league } = await supabase
-    .from("leagues").select("*").eq("id", params.id).single() as any;
+    .from("leagues").select("*").eq("id", id).single() as any;
   if (!league) notFound();
 
   const { data: standingsData } = await supabase
-    .from("league_standings").select("*").eq("league_id", params.id)
+    .from("league_standings").select("*").eq("league_id", id)
     .order("total_points", { ascending: false }) as any;
 
   const standings = (standingsData ?? []) as LeagueStanding[];
@@ -34,13 +35,14 @@ export default async function LeaguePage({ params }: { params: { id: string } })
   // Charger les pronostics de l'utilisateur pour cette ligue
   const { data: userPredictions } = await supabase
     .from("predictions").select("match_id")
-    .eq("user_id", user.id).eq("league_id", params.id) as any;
+    .eq("user_id", user.id).eq("league_id", id) as any;
 
   const predictedMatchIds = new Set((userPredictions ?? []).map((p: any) => p.match_id));
 
   const allMatches = (matches as any[]) ?? [];
   const finishedMatches = allMatches.filter((m: any) => m.status === "finished");
-  const upcomingMatches = allMatches.filter((m: any) => m.status !== "finished");
+  const liveMatches = allMatches.filter((m: any) => m.status === "live");
+  const upcomingMatches = allMatches.filter((m: any) => m.status === "upcoming");
 
   const medalColors = ["text-yellow-500", "text-gray-400", "text-amber-600"];
 
@@ -87,7 +89,7 @@ export default async function LeaguePage({ params }: { params: { id: string } })
                     {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
                   </span>
                   <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold shrink-0">
-                    {s.username[0].toUpperCase()}
+                    {(s.username?.[0] ?? "?").toUpperCase()}
                   </div>
                   <span className="flex-1 font-semibold text-gray-800">{s.username}</span>
                   <div className="text-right">
@@ -99,6 +101,27 @@ export default async function LeaguePage({ params }: { params: { id: string } })
             </div>
           )}
         </section>
+
+        {/* Matchs en cours */}
+        {liveMatches.length > 0 && (
+          <section className="mb-6">
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="w-1 h-5 bg-red-500 rounded-full inline-block animate-pulse"></span>
+              En direct
+            </h2>
+            <div className="space-y-2">
+              {liveMatches.map((match: any) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  leagueId={id}
+                  locked
+                  href={`/leagues/${id}/match/${match.id}`}
+                />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Matchs à venir */}
         <section className="mb-6">
@@ -114,10 +137,10 @@ export default async function LeaguePage({ params }: { params: { id: string } })
                 <MatchCard
                   key={match.id}
                   match={match}
-                  leagueId={params.id}
+                  leagueId={id}
                   locked={locked}
                   predicted={predicted}
-                  href={`/leagues/${params.id}/match/${match.id}`}
+                  href={`/leagues/${id}/match/${match.id}`}
                 />
               );
             })}
@@ -136,9 +159,9 @@ export default async function LeaguePage({ params }: { params: { id: string } })
                 <MatchCard
                   key={match.id}
                   match={match}
-                  leagueId={params.id}
+                  leagueId={id}
                   showScore
-                  href={`/leagues/${params.id}/match/${match.id}`}
+                  href={`/leagues/${id}/match/${match.id}`}
                 />
               ))}
             </div>

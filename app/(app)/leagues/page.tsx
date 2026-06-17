@@ -55,7 +55,7 @@ export default async function LeaguesPage() {
                   className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between hover:shadow-md hover:border-green-200 transition-all block">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600 font-bold text-lg">
-                      {league.name[0].toUpperCase()}
+                      {(league.name?.[0] ?? "?").toUpperCase()}
                     </div>
                     <div>
                       <p className="font-bold text-gray-800">{league.name}</p>

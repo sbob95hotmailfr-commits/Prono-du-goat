@@ -8,24 +8,25 @@ import { ConfettiClient } from "@/components/confetti-client";
 import { FlagImage } from "@/components/flag-image";
 import type { Prediction } from "@/types/database";
 
-export default async function MatchPage({ params }: { params: { id: string; matchId: string } }) {
+export default async function MatchPage({ params }: { params: Promise<{ id: string; matchId: string }> }) {
+  const { id, matchId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
   const { data: membership } = await supabase
     .from("league_members").select("*")
-    .eq("league_id", params.id).eq("user_id", user.id).single() as any;
+    .eq("league_id", id).eq("user_id", user.id).single() as any;
   if (!membership) notFound();
 
   const { data: match } = await supabase
-    .from("matches").select("*").eq("id", params.matchId).single() as any;
+    .from("matches").select("*").eq("id", matchId).single() as any;
   if (!match) notFound();
 
   const { data: predictionData } = await supabase
     .from("predictions").select("*")
-    .eq("user_id", user.id).eq("match_id", params.matchId)
-    .eq("league_id", params.id).single() as any;
+    .eq("user_id", user.id).eq("match_id", matchId)
+    .eq("league_id", id).single() as any;
 
   const prediction = predictionData as Prediction | null;
   const m = match as any;
@@ -37,7 +38,7 @@ export default async function MatchPage({ params }: { params: { id: string; matc
       {/* Header */}
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-5">
         <div className="max-w-md mx-auto flex items-center gap-3">
-          <Link href={`/leagues/${params.id}`} className="text-gray-400 hover:text-white text-xl">←</Link>
+          <Link href={`/leagues/${id}`} className="text-gray-400 hover:text-white text-xl">←</Link>
           <span className="text-sm text-gray-300">{m.stage}</span>
         </div>
       </div>
@@ -129,11 +130,11 @@ export default async function MatchPage({ params }: { params: { id: string; matc
               </p>
               <p className="text-xs text-blue-400 mt-1">Tu peux le modifier jusqu&apos;au début du match</p>
             </div>
-            <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={prediction} kickoffAt={m.kickoff_at} />
+            <PredictionForm matchId={matchId} leagueId={id} existingPrediction={prediction} kickoffAt={m.kickoff_at} />
           </div>
         ) : (
           // Pas encore de pronostic
-          <PredictionForm matchId={params.matchId} leagueId={params.id} existingPrediction={null} kickoffAt={m.kickoff_at} />
+          <PredictionForm matchId={matchId} leagueId={id} existingPrediction={null} kickoffAt={m.kickoff_at} />
         )}
       </div>
     </div>

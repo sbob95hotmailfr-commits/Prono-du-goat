@@ -132,7 +132,7 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
             <button type="button" onClick={() => setHomeScore(Math.max(0, homeScore - 1))}
               className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">−</button>
             <span className="font-mono font-bold w-6 text-center">{homeScore}</span>
-            <button type="button" onClick={() => setHomeScore(homeScore + 1)}
+            <button type="button" onClick={() => setHomeScore(Math.min(20, homeScore + 1))}
               className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">+</button>
           </div>
 
@@ -142,7 +142,7 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
             <button type="button" onClick={() => setAwayScore(Math.max(0, awayScore - 1))}
               className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">−</button>
             <span className="font-mono font-bold w-6 text-center">{awayScore}</span>
-            <button type="button" onClick={() => setAwayScore(awayScore + 1)}
+            <button type="button" onClick={() => setAwayScore(Math.min(20, awayScore + 1))}
               className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">+</button>
           </div>
         </div>
