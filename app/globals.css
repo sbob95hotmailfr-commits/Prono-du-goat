@@ -3,17 +3,21 @@
 @tailwind utilities;
 
 :root {
-  --color-bg:           #F8F9FA;
+  --color-bg:           #F0F2F5;
   --color-surface:      #FFFFFF;
-  --color-primary:      #16A34A;
-  --color-primary-dark: #15803D;
-  --color-gold:         #D97706;
+  --color-primary:      #00A650;
+  --color-primary-dark: #007A3D;
+  --color-gold:         #E8A020;
   --color-gold-light:   #FEF3C7;
-  --color-dark:         #111827;
+  --color-dark:         #0D1B2E;
   --color-muted:        #6B7280;
   --color-border:       #E5E7EB;
   --color-danger:       #DC2626;
   --color-locked:       #374151;
+  --color-wc-navy:      #0D1B2E;
+  --color-wc-green:     #00A650;
+  --color-wc-red:       #E63329;
+  --color-wc-gold:      #E8A020;
 }
 
 @layer base {
@@ -26,21 +30,54 @@
 
 @layer components {
   .btn-primary {
-    @apply bg-primary hover:bg-primary-dark text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+    @apply bg-[#00A650] hover:bg-[#007A3D] text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
   }
   .btn-secondary {
-    @apply bg-transparent border border-primary text-primary hover:bg-primary hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+    @apply bg-transparent border border-[#00A650] text-[#00A650] hover:bg-[#00A650] hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
   }
   .card {
-    @apply bg-surface rounded-card shadow-card border border-border;
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
   }
   .badge-locked {
-    @apply bg-locked text-white text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
+    @apply bg-gray-700 text-white text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
   }
   .badge-exact {
-    @apply bg-gold-light text-gold text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
+    @apply bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
   }
   .score-input {
-    @apply font-mono text-2xl text-center w-12 border-0 border-b-2 border-border focus:border-primary focus:outline-none bg-transparent;
+    @apply font-mono text-2xl text-center w-12 border-0 border-b-2 border-gray-200 focus:border-[#00A650] focus:outline-none bg-transparent;
+  }
+
+  /* WC2026 Header Banner */
+  .wc-header {
+    background: linear-gradient(135deg, #0D1B2E 0%, #1a2f4e 50%, #0D1B2E 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .wc-header::before {
+    content: '';
+    position: absolute;
+    top: -20px; right: -20px;
+    width: 120px; height: 120px;
+    background: linear-gradient(135deg, #00A650 0%, transparent 70%);
+    border-radius: 50%;
+    opacity: 0.3;
+  }
+  .wc-header::after {
+    content: '';
+    position: absolute;
+    bottom: -30px; left: -30px;
+    width: 150px; height: 150px;
+    background: linear-gradient(135deg, transparent 30%, #E8A020 100%);
+    border-radius: 50%;
+    opacity: 0.15;
+  }
+
+  /* Group badge */
+  .group-badge {
+    @apply text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded;
+    background: rgba(0, 166, 80, 0.15);
+    color: #00A650;
+    border: 1px solid rgba(0, 166, 80, 0.3);
   }
 }
