@@ -39,10 +39,18 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
   const predictedMatchIds = new Set((userPredictions ?? []).map((p: any) => p.match_id));
 
+  const now = new Date();
   const allMatches = (matches as any[]) ?? [];
   const finishedMatches = allMatches.filter((m: any) => m.status === "finished");
   const liveMatches = allMatches.filter((m: any) => m.status === "live");
-  const upcomingMatches = allMatches.filter((m: any) => m.status === "upcoming");
+  // Matchs à venir : status upcoming ET kickoff dans le futur
+  const upcomingMatches = allMatches.filter(
+    (m: any) => m.status === "upcoming" && new Date(m.kickoff_at) > now
+  );
+  // Matchs passés non encore scorés : kickoff dépassé mais pas encore "finished"
+  const pendingMatches = allMatches.filter(
+    (m: any) => m.status === "upcoming" && new Date(m.kickoff_at) <= now
+  );
 
   const medalColors = ["text-yellow-500", "text-gray-400", "text-amber-600"];
 
@@ -124,28 +132,54 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         )}
 
         {/* Matchs à venir */}
-        <section className="mb-6">
-          <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-            <span className="w-1 h-5 bg-green-500 rounded-full inline-block"></span>
-            Matchs à venir
-          </h2>
-          <div className="space-y-2">
-            {upcomingMatches.map((match: any) => {
-              const locked = isMatchLocked(match.kickoff_at);
-              const predicted = predictedMatchIds.has(match.id);
-              return (
-                <MatchCard
-                  key={match.id}
-                  match={match}
-                  leagueId={id}
-                  locked={locked}
-                  predicted={predicted}
-                  href={`/leagues/${id}/match/${match.id}`}
-                />
-              );
-            })}
-          </div>
-        </section>
+        {upcomingMatches.length > 0 && (
+          <section className="mb-6">
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="w-1 h-5 bg-green-500 rounded-full inline-block"></span>
+              Matchs à venir
+            </h2>
+            <div className="space-y-2">
+              {upcomingMatches.map((match: any) => {
+                const predicted = predictedMatchIds.has(match.id);
+                return (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    leagueId={id}
+                    locked={false}
+                    predicted={predicted}
+                    href={`/leagues/${id}/match/${match.id}`}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Matchs joués en attente de score */}
+        {pendingMatches.length > 0 && (
+          <section className="mb-6">
+            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <span className="w-1 h-5 bg-orange-400 rounded-full inline-block"></span>
+              En attente de score
+            </h2>
+            <div className="space-y-2">
+              {pendingMatches.map((match: any) => {
+                const predicted = predictedMatchIds.has(match.id);
+                return (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    leagueId={id}
+                    locked={true}
+                    predicted={predicted}
+                    href={`/leagues/${id}/match/${match.id}`}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Résultats */}
         {finishedMatches.length > 0 && (
