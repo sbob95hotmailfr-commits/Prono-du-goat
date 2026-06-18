@@ -105,11 +105,19 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
         </div>
       </div>
 
-      {/* Barre de réactions emoji — spec 5F */}
-      <ReactionsBar matchId={match.id} />
     </div>
   );
 
-  if (href) return <Link href={href} className="block">{content}</Link>;
-  return content;
+  if (href) return (
+    <div>
+      <Link href={href} className="block">{content}</Link>
+      <ReactionsBar matchId={match.id} />
+    </div>
+  );
+  return (
+    <div>
+      {content}
+      <ReactionsBar matchId={match.id} />
+    </div>
+  );
 }

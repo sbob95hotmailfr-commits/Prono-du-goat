@@ -6,7 +6,7 @@ interface WcNavProps {
   leagueName: string;
   code?: string;
   isAdmin?: boolean;
-  activeTab: "matches" | "classements" | "stats" | "equipes" | "tableau";
+  activeTab: "matches" | "classements" | "stats" | "equipes" | "tableau" | "badges";
 }
 
 export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab }: WcNavProps) {
@@ -16,6 +16,7 @@ export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab }: WcNavP
     { key: "tableau",     label: "Tableau",      href: `/leagues/${leagueId}/bracket` },
     { key: "equipes",     label: "Équipes",      href: `/leagues/${leagueId}/teams` },
     { key: "stats",       label: "Ma ligue",     href: `/leagues/${leagueId}/stats` },
+    { key: "badges",      label: "🏅 Badges",    href: `/leagues/${leagueId}/badges` },
   ] as const;
 
   return (
@@ -37,6 +38,10 @@ export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab }: WcNavP
             {code && (
               <span className="text-[10px] text-gray-500 font-mono hidden sm:block">#{code}</span>
             )}
+            <Link href="/profile/ai"
+              className="flex items-center gap-1 text-[10px] bg-[#003DA5] text-white font-bold px-2 py-1 rounded uppercase tracking-wide hover:bg-[#003DA5]/80 transition-colors">
+              ✨ Profil IA
+            </Link>
             {isAdmin && (
               <Link href="/admin/matches"
                 className="text-[10px] bg-[#F5A623] text-black font-bold px-2 py-1 rounded uppercase tracking-wide">
