@@ -66,8 +66,10 @@ function normalize(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[''']/g, "")
+    .replace(/[̀-ͯ]/g, "")   // supprime les accents
+    .replace(/[&]/g, "and")            // & → and
+    .replace(/['''`]/g, "")
+    .replace(/[-]/g, " ")              // tirets → espaces
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -78,12 +80,17 @@ function toEnglish(frName: string): string {
 }
 
 function teamsMatch(dbName: string, apiName: string): boolean {
-  const dbEn = toEnglish(dbName);
+  const dbEn = normalize(toEnglish(dbName));
   const apiNorm = normalize(apiName);
   if (dbEn === apiNorm) return true;
   if (normalize(dbName) === apiNorm) return true;
-  // Correspondance partielle (ex: "South Korea" vs "Korea Republic")
+  // Correspondance partielle
   if (apiNorm.includes(dbEn) || dbEn.includes(apiNorm)) return true;
+  // Premiers mots (ex: "Korea Republic" vs "South Korea")
+  const dbWords = dbEn.split(" ");
+  const apiWords = apiNorm.split(" ");
+  const shared = dbWords.filter(w => w.length > 3 && apiWords.includes(w));
+  if (shared.length >= 1 && (dbWords.length === 1 || apiWords.length === 1)) return true;
   return false;
 }
 
