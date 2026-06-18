@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { AdminScoreForm } from "@/components/admin-score-form";
 import { AdminRecalculateBtn } from "@/components/admin-recalculate-btn";
+import { AdminSyncBtn } from "@/components/admin-sync-btn";
 import type { Match } from "@/types/database";
 
 export default async function AdminMatchesPage() {
@@ -38,7 +39,8 @@ export default async function AdminMatchesPage() {
         Saisis le score final d&apos;un match. Les points seront calculés automatiquement.
       </p>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-col gap-3">
+        <AdminSyncBtn />
         <AdminRecalculateBtn />
       </div>
 
