@@ -3,27 +3,27 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { calculatePoints } from "@/lib/points";
 
-// Traduction noms FR → noms API Football (anglais)
 const FR_TO_EN: Record<string, string> = {
-  "états-unis": "united states",
+  "etats-unis": "united states",
   "mexique": "mexico",
   "afrique du sud": "south africa",
-  "corée du sud": "south korea",
-  "tchéquie": "czechia",
-  "bosnie-herzégovine": "bosnia and herzegovina",
-  "ouzbékistan": "uzbekistan",
+  "coree du sud": "south korea",
+  "tchequie": "czechia",
+  "republique tcheque": "czech republic",
+  "bosnie-herzegovine": "bosnia and herzegovina",
+  "ouzbekistan": "uzbekistan",
   "colombie": "colombia",
   "suisse": "switzerland",
   "angleterre": "england",
   "croatie": "croatia",
-  "nouvelle-zélande": "new zealand",
-  "équateur": "ecuador",
-  "pérou": "peru",
+  "nouvelle-zelande": "new zealand",
+  "equateur": "ecuador",
+  "perou": "peru",
   "chili": "chile",
   "argentine": "argentina",
-  "brésil": "brazil",
-  "algérie": "algeria",
-  "sénégal": "senegal",
+  "bresil": "brazil",
+  "algerie": "algeria",
+  "senegal": "senegal",
   "allemagne": "germany",
   "arabie saoudite": "saudi arabia",
   "japon": "japan",
@@ -31,22 +31,24 @@ const FR_TO_EN: Record<string, string> = {
   "espagne": "spain",
   "maroc": "morocco",
   "tunisie": "tunisia",
-  "égypte": "egypt",
+  "egypte": "egypt",
   "serbie": "serbia",
-  "géorgie": "georgia",
-  "suède": "sweden",
+  "georgie": "georgia",
+  "suede": "sweden",
   "cameroun": "cameroon",
-  "écosse": "scotland",
+  "ecosse": "scotland",
   "italie": "italy",
   "slovaquie": "slovakia",
   "pays-bas": "netherlands",
+  "hollande": "netherlands",
   "pologne": "poland",
   "autriche": "austria",
   "belgique": "belgium",
   "danemark": "denmark",
   "rd congo": "dr congo",
-  "république démocratique du congo": "dr congo",
-  "côte d'ivoire": "ivory coast",
+  "rdc": "dr congo",
+  "cote divoire": "ivory coast",
+  "cote d ivoire": "ivory coast",
   "nigeria": "nigeria",
   "ghana": "ghana",
   "panama": "panama",
@@ -56,6 +58,8 @@ const FR_TO_EN: Record<string, string> = {
   "portugal": "portugal",
   "uruguay": "uruguay",
   "france": "france",
+  "honduras": "honduras",
+  "costa rica": "costa rica",
 };
 
 function normalize(name: string): string {
@@ -63,7 +67,8 @@ function normalize(name: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/['']/g, "")
+    .replace(/[''']/g, "")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -75,7 +80,11 @@ function toEnglish(frName: string): string {
 function teamsMatch(dbName: string, apiName: string): boolean {
   const dbEn = toEnglish(dbName);
   const apiNorm = normalize(apiName);
-  return dbEn === apiNorm || normalize(dbName) === apiNorm;
+  if (dbEn === apiNorm) return true;
+  if (normalize(dbName) === apiNorm) return true;
+  // Correspondance partielle (ex: "South Korea" vs "Korea Republic")
+  if (apiNorm.includes(dbEn) || dbEn.includes(apiNorm)) return true;
+  return false;
 }
 
 export async function POST(request: Request) {
@@ -85,14 +94,13 @@ export async function POST(request: Request) {
 
   const adminSupabase = createAdminClient();
 
-  // Vérifier que l'utilisateur est admin d'au moins une ligue
   const { data: adminLeagues } = await adminSupabase
     .from("leagues").select("id").eq("admin_id", user.id);
   if (!adminLeagues?.length) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
   }
 
-  // Récupérer tous les matchs non terminés dont le coup d'envoi est passé depuis 105+ min
+  // Matchs non terminés dont le coup d'envoi est passé depuis plus de 105 min
   const cutoff = new Date(Date.now() - 105 * 60 * 1000).toISOString();
   const { data: pendingMatches } = await adminSupabase
     .from("matches")
@@ -102,10 +110,13 @@ export async function POST(request: Request) {
     .order("kickoff_at");
 
   if (!pendingMatches?.length) {
-    return NextResponse.json({ success: true, updated: 0, message: "Aucun match à synchroniser" });
+    return NextResponse.json({ success: true, updated: 0, message: "Aucun match à synchroniser pour l'instant" });
   }
 
-  // Grouper par date UTC
+  const API_KEY = process.env.API_FOOTBALL_KEY;
+  if (!API_KEY) return NextResponse.json({ error: "Clé API_FOOTBALL_KEY manquante" }, { status: 500 });
+
+  // Grouper par date (YYYY-MM-DD en UTC)
   const byDate: Record<string, typeof pendingMatches> = {};
   for (const m of pendingMatches) {
     const date = m.kickoff_at.slice(0, 10);
@@ -113,53 +124,60 @@ export async function POST(request: Request) {
     byDate[date].push(m);
   }
 
-  const API_KEY = process.env.API_FOOTBALL_KEY;
-  if (!API_KEY) return NextResponse.json({ error: "Clé API Football manquante" }, { status: 500 });
-
   let totalUpdated = 0;
   const errors: string[] = [];
+  const notFound: string[] = [];
 
   for (const [date, matches] of Object.entries(byDate)) {
-    // Récupérer les fixtures API Football pour ce jour (WC2026 = league 1, saison 2026)
     let fixtures: any[] = [];
     try {
+      // Essai 1 : WC2026 (league=1, season=2026)
       const res = await fetch(
         `https://v3.football.api-sports.io/fixtures?league=1&season=2026&date=${date}`,
-        { headers: { "x-apisports-key": API_KEY }, next: { revalidate: 0 } }
+        { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
       );
       const json = await res.json();
       fixtures = json?.response ?? [];
+
+      // Essai 2 : si rien, chercher sans filtre de ligue (toutes les compétitions ce jour)
+      if (!fixtures.length) {
+        const res2 = await fetch(
+          `https://v3.football.api-sports.io/fixtures?date=${date}&timezone=UTC`,
+          { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
+        );
+        const json2 = await res2.json();
+        fixtures = json2?.response ?? [];
+      }
     } catch (e) {
-      errors.push(`Erreur API pour ${date}`);
+      errors.push(`Erreur réseau pour ${date}`);
       continue;
     }
 
-    // Ne garder que les fixtures terminées
-    const finished = fixtures.filter(
-      (f: any) => f.fixture?.status?.short === "FT" || f.fixture?.status?.short === "AET" || f.fixture?.status?.short === "PEN"
+    const finishedFixtures = fixtures.filter(
+      (f: any) => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short)
     );
 
     for (const dbMatch of matches) {
-      // Trouver le fixture correspondant par noms d'équipe
-      const fixture = finished.find((f: any) =>
-        teamsMatch(dbMatch.home_team, f.teams?.home?.name) &&
-        teamsMatch(dbMatch.away_team, f.teams?.away?.name)
+      const fixture = finishedFixtures.find((f: any) =>
+        teamsMatch(dbMatch.home_team, f.teams?.home?.name ?? "") &&
+        teamsMatch(dbMatch.away_team, f.teams?.away?.name ?? "")
       );
 
-      if (!fixture) continue;
+      if (!fixture) {
+        notFound.push(`${dbMatch.home_team} vs ${dbMatch.away_team}`);
+        continue;
+      }
 
       const homeScore = fixture.goals?.home ?? 0;
       const awayScore = fixture.goals?.away ?? 0;
 
-      // Mettre à jour le match
       const { error: matchErr } = await adminSupabase
         .from("matches")
         .update({ home_score: homeScore, away_score: awayScore, status: "finished" })
         .eq("id", dbMatch.id);
 
-      if (matchErr) { errors.push(`Match ${dbMatch.id}: ${matchErr.message}`); continue; }
+      if (matchErr) { errors.push(`Erreur match: ${matchErr.message}`); continue; }
 
-      // Calculer les points pour tous les pronostics de ce match
       const { data: preds } = await adminSupabase
         .from("predictions")
         .select("id, home_score_pred, away_score_pred")
@@ -178,10 +196,9 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({
-    success: true,
-    updated: totalUpdated,
-    message: `${totalUpdated} match(s) synchronisé(s)${errors.length ? ` — ${errors.length} erreur(s)` : ""}`,
-    errors: errors.length ? errors : undefined,
-  });
+  let message = `${totalUpdated} match(s) mis à jour`;
+  if (notFound.length) message += ` — ${notFound.length} non trouvé(s) sur API Football`;
+  if (errors.length) message += ` — ${errors.length} erreur(s)`;
+
+  return NextResponse.json({ success: true, updated: totalUpdated, message, notFound, errors });
 }
