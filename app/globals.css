@@ -3,37 +3,43 @@
 @tailwind utilities;
 
 :root {
-  --color-bg:           #F0F2F5;
-  --color-surface:      #FFFFFF;
-  --color-primary:      #00A650;
-  --color-primary-dark: #007A3D;
-  --color-gold:         #E8A020;
-  --color-gold-light:   #FEF3C7;
-  --color-dark:         #0D1B2E;
-  --color-muted:        #6B7280;
-  --color-border:       #E5E7EB;
-  --color-danger:       #DC2626;
-  --color-locked:       #374151;
-  --color-wc-navy:      #0D1B2E;
-  --color-wc-green:     #00A650;
-  --color-wc-red:       #E63329;
-  --color-wc-gold:      #E8A020;
+  --wc-black:   #000000;
+  --wc-white:   #FFFFFF;
+  --wc-red:     #E8192C;
+  --wc-blue:    #003DA5;
+  --wc-green:   #00A650;
+  --wc-gold:    #F5A623;
+  --wc-bg:      #F7F7F7;
+  --wc-border:  #E5E5E5;
+  --wc-text:    #1A1A1A;
+  --wc-muted:   #767676;
+  --color-primary: #003DA5;
+  --color-primary-dark: #002d7a;
+  --color-bg: #F7F7F7;
+  --color-surface: #FFFFFF;
+  --color-border: #E5E5E5;
+  --color-dark: #1A1A1A;
+  --color-muted: #767676;
+  --color-danger: #E8192C;
+  --color-gold: #F5A623;
+  --color-gold-light: #FEF3C7;
+  --color-locked: #374151;
 }
 
 @layer base {
   body {
-    background-color: var(--color-bg);
-    color: var(--color-dark);
+    background-color: var(--wc-bg);
+    color: var(--wc-text);
     font-family: var(--font-inter), sans-serif;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-[#00A650] hover:bg-[#007A3D] text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+    @apply bg-[#003DA5] hover:bg-[#002d7a] text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
   }
   .btn-secondary {
-    @apply bg-transparent border border-[#00A650] text-[#00A650] hover:bg-[#00A650] hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
+    @apply bg-transparent border border-[#003DA5] text-[#003DA5] hover:bg-[#003DA5] hover:text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;
   }
   .card {
     @apply bg-white rounded-xl shadow-sm border border-gray-100;
@@ -45,39 +51,6 @@
     @apply bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1;
   }
   .score-input {
-    @apply font-mono text-2xl text-center w-12 border-0 border-b-2 border-gray-200 focus:border-[#00A650] focus:outline-none bg-transparent;
-  }
-
-  /* WC2026 Header Banner */
-  .wc-header {
-    background: linear-gradient(135deg, #0D1B2E 0%, #1a2f4e 50%, #0D1B2E 100%);
-    position: relative;
-    overflow: hidden;
-  }
-  .wc-header::before {
-    content: '';
-    position: absolute;
-    top: -20px; right: -20px;
-    width: 120px; height: 120px;
-    background: linear-gradient(135deg, #00A650 0%, transparent 70%);
-    border-radius: 50%;
-    opacity: 0.3;
-  }
-  .wc-header::after {
-    content: '';
-    position: absolute;
-    bottom: -30px; left: -30px;
-    width: 150px; height: 150px;
-    background: linear-gradient(135deg, transparent 30%, #E8A020 100%);
-    border-radius: 50%;
-    opacity: 0.15;
-  }
-
-  /* Group badge */
-  .group-badge {
-    @apply text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded;
-    background: rgba(0, 166, 80, 0.15);
-    color: #00A650;
-    border: 1px solid rgba(0, 166, 80, 0.3);
+    @apply font-mono text-2xl text-center w-12 border-0 border-b-2 border-gray-200 focus:border-[#003DA5] focus:outline-none bg-transparent;
   }
 }

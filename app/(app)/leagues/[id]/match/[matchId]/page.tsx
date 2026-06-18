@@ -2,8 +2,8 @@
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { formatDate, isMatchLocked } from "@/lib/utils";
+import { WcNav } from "@/components/wc-nav";
 import { PredictionForm } from "@/components/prediction-form";
 import { ConfettiClient } from "@/components/confetti-client";
 import { FlagImage } from "@/components/flag-image";
@@ -33,6 +33,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const m = match as any;
   const locked = isMatchLocked(m.kickoff_at) || prediction?.is_locked;
   const finished = m.status === "finished";
+  const isAdmin = (await supabase.from("leagues").select("admin_id").eq("id", id).single() as any)?.data?.admin_id === user.id;
 
   // Charger les pronostics de tous les membres une fois le match verrouillé
   let allPredictions: any[] = [];
@@ -66,21 +67,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5]">
-
-      {/* Header WC2026 */}
-      <div className="wc-header text-white px-4 py-5 relative z-10">
-        <div className="max-w-md mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href={`/leagues/${id}`} className="text-gray-400 hover:text-white text-xl transition-colors">←</Link>
-            <div>
-              <p className="text-[10px] text-[#00A650] font-bold uppercase tracking-widest">FIFA World Cup 2026™</p>
-              <p className="text-sm font-bold text-white">{m.stage}</p>
-            </div>
-          </div>
-          <Image src="/wc2026.png" alt="WC2026" width={40} height={40} className="opacity-80" />
-        </div>
-      </div>
+    <div className="min-h-screen bg-[#F7F7F7]">
+      <WcNav leagueId={id} leagueName={m.stage} isAdmin={isAdmin} activeTab="matches" />
 
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
 

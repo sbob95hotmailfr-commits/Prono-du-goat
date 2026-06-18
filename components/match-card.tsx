@@ -13,80 +13,86 @@ interface MatchCardProps {
   href?: string;
 }
 
-function Flag({ team }: { team: string }) {
+function Flag({ team, size = "sm" }: { team: string; size?: "sm" | "md" }) {
   const url = getFlagUrl(team, "md");
+  const cls = size === "md" ? "w-10 h-7" : "w-8 h-6";
   return (
-    <div className="w-12 h-9 rounded-md overflow-hidden shadow-sm bg-gray-100 shrink-0 border border-gray-200">
-      {url ? (
-        <img src={url} alt={team} className="w-full h-full object-cover" />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-400">?</div>
-      )}
+    <div className={`${cls} rounded overflow-hidden bg-gray-100 border border-gray-200 shrink-0`}>
+      {url
+        ? <img src={url} alt={team} className="w-full h-full object-cover" />
+        : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gray-400">?</div>
+      }
     </div>
   );
 }
 
 export function MatchCard({ match, leagueId, locked, showScore, predicted, href }: MatchCardProps) {
   const finished = match.status === "finished";
+  const live = match.status === "live";
+  const showResult = (finished && showScore && match.home_score != null) || live;
 
   const content = (
-    <div className="bg-white rounded-xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md hover:border-[#00A650]/30 transition-all">
+    <div className="bg-white hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 px-4 py-3">
 
-      {/* Bandeau WC2026 style */}
-      <div className="wc-header px-4 py-2 flex items-center justify-between">
-        <span className="text-[10px] font-bold text-[#00A650] uppercase tracking-widest">{match.stage}</span>
-        <span className="text-[10px] text-gray-400">{formatDate(match.kickoff_at)}</span>
+      {/* Badge statut */}
+      <div className="flex justify-center mb-2">
+        {live && (
+          <span className="flex items-center gap-1 text-[11px] font-bold text-[#E8192C]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#E8192C] animate-pulse inline-block"></span>
+            EN DIRECT
+          </span>
+        )}
+        {finished && (
+          <span className="text-[11px] font-bold text-[#00A650] uppercase tracking-wide">Terminé</span>
+        )}
+        {!finished && !live && (
+          <span className="text-[11px] text-gray-400">{formatDate(match.kickoff_at)}</span>
+        )}
       </div>
 
-      {/* Corps du match */}
-      <div className="px-4 py-4">
-        <div className="flex items-center justify-between gap-3">
-
-          {/* Équipe domicile */}
-          <div className="flex-1 flex flex-col items-end gap-1.5">
-            <Flag team={match.home_team} />
-            <span className="font-bold text-[#0D1B2E] text-xs text-right leading-tight">{match.home_team}</span>
-          </div>
-
-          {/* Score / VS */}
-          <div className="shrink-0 text-center min-w-[64px]">
-            {finished && match.home_score != null ? (
-              <div className="bg-[#0D1B2E] rounded-lg px-3 py-1.5">
-                <span className="font-mono font-bold text-white text-xl tracking-widest">
-                  {match.home_score} – {match.away_score}
-                </span>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-200 rounded-lg px-3 py-1.5">
-                <span className="font-bold text-gray-300 text-base">VS</span>
-              </div>
-            )}
-          </div>
-
-          {/* Équipe extérieure */}
-          <div className="flex-1 flex flex-col items-start gap-1.5">
-            <Flag team={match.away_team} />
-            <span className="font-bold text-[#0D1B2E] text-xs leading-tight">{match.away_team}</span>
-          </div>
+      {/* Équipes + score */}
+      <div className="flex items-center gap-3">
+        {/* Équipe domicile */}
+        <div className="flex-1 flex items-center justify-end gap-2">
+          <span className="font-semibold text-sm text-[#1A1A1A] text-right leading-tight">{match.home_team}</span>
+          <Flag team={match.home_team} size="md" />
         </div>
 
-        {/* Badge action */}
+        {/* Score */}
+        <div className="shrink-0 min-w-[70px] text-center">
+          {showResult ? (
+            <span className="font-bold text-xl text-[#1A1A1A] tracking-wide">
+              {match.home_score} – {match.away_score}
+            </span>
+          ) : (
+            <span className="font-bold text-xl text-gray-300">–</span>
+          )}
+        </div>
+
+        {/* Équipe extérieure */}
+        <div className="flex-1 flex items-center gap-2">
+          <Flag team={match.away_team} size="md" />
+          <span className="font-semibold text-sm text-[#1A1A1A] leading-tight">{match.away_team}</span>
+        </div>
+      </div>
+
+      {/* Groupe + action */}
+      <div className="flex items-center justify-center gap-3 mt-2">
+        <span className="text-[11px] text-gray-400">{match.stage}</span>
+
         {leagueId && (
-          <div className="mt-3 text-center">
+          <>
+            <span className="text-gray-300 text-[10px]">·</span>
             {finished ? (
-              <span className="text-xs text-gray-400 font-medium">Voir les pronostics →</span>
+              <span className="text-[11px] text-gray-500">Voir les pronostics →</span>
             ) : locked ? (
-              <span className="text-xs text-gray-400 font-medium">🔒 Verrouillé</span>
+              <span className="text-[11px] text-gray-400">🔒 Verrouillé</span>
             ) : predicted ? (
-              <span className="text-xs font-bold text-[#00A650] bg-green-50 px-3 py-1 rounded-full border border-[#00A650]/20">
-                ✓ Pronostic enregistré →
-              </span>
+              <span className="text-[11px] font-bold text-[#00A650]">✓ Pronostiqué</span>
             ) : (
-              <span className="text-xs font-bold text-white bg-[#00A650] px-3 py-1 rounded-full">
-                Pronostiquer →
-              </span>
+              <span className="text-[11px] font-bold text-[#003DA5]">Pronostiquer →</span>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
