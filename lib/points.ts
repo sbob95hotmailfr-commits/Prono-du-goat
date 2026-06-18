@@ -21,3 +21,12 @@ export function getPointsLabel(points: number): string {
   if (points === 1) return "✓ Bon résultat";
   return "✗ Raté";
 }
+
+// Calcul du bonus buteur
+// Retourne 1 si le joueur pronostiqué a marqué, 0 sinon
+export function calculateScorerBonus(
+  predictedPlayerId: string,
+  actualScorerIds: string[]
+): number {
+  return actualScorerIds.includes(predictedPlayerId) ? 1 : 0;
+}

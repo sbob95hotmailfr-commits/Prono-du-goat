@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatDate, isMatchLocked } from "@/lib/utils";
 import { WcNav } from "@/components/wc-nav";
 import { PredictionForm } from "@/components/prediction-form";
+import { ScorerForm } from "@/components/scorer-form";
 import { ConfettiClient } from "@/components/confetti-client";
 import { FlagImage } from "@/components/flag-image";
 import type { Prediction } from "@/types/database";
@@ -34,6 +35,26 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const locked = isMatchLocked(m.kickoff_at) || prediction?.is_locked;
   const finished = m.status === "finished";
   const isAdmin = (await supabase.from("leagues").select("admin_id").eq("id", id).single() as any)?.data?.admin_id === user.id;
+
+  // Charger les joueurs des deux équipes pour le pronostic buteur
+  const adminSupabaseGlobal = createAdminClient();
+  const { data: playersRaw } = await adminSupabaseGlobal
+    .from("players")
+    .select("id, name, team_name, position, photo_url")
+    .in("team_name", [m.home_team, m.away_team])
+    .order("team_name").order("name") as any;
+  const players = (playersRaw ?? []) as any[];
+
+  // Charger le pronostic buteur existant de l'utilisateur (si prediction existe)
+  let currentScorerPrediction: any = null;
+  if (prediction?.id) {
+    const { data: sp } = await adminSupabaseGlobal
+      .from("scorer_predictions")
+      .select("player_id")
+      .eq("prediction_id", prediction.id)
+      .single() as any;
+    currentScorerPrediction = sp;
+  }
 
   // Charger les pronostics de tous les membres une fois le match verrouillé
   let allPredictions: any[] = [];
@@ -171,6 +192,16 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           </div>
         ) : (
           <PredictionForm matchId={matchId} leagueId={id} existingPrediction={null} kickoffAt={m.kickoff_at} />
+        )}
+
+        {/* Section Pronostic Buteur — spec 5A */}
+        {prediction && players.length > 0 && (
+          <ScorerForm
+            predictionId={prediction.id}
+            players={players}
+            currentPlayerId={currentScorerPrediction?.player_id ?? null}
+            locked={locked ?? false}
+          />
         )}
 
         {/* Pronostics de toute la ligue — visibles après verrouillage */}

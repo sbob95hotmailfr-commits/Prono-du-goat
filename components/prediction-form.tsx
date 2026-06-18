@@ -147,8 +147,16 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
           </div>
         </div>
 
-        <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? "Enregistrement…" : existingPrediction ? "Mettre à jour" : "Valider mon pronostic"}
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700
+                     disabled:opacity-50 disabled:scale-100
+                     text-white font-bold px-6 py-3 rounded-lg transition-all
+                     hover:scale-105 active:scale-95"
+        >
+          <span className="text-2xl">⚽</span>
+          <span>{loading ? "Enregistrement…" : existingPrediction ? "Mettre à jour" : "Pronostiquer"}</span>
         </button>
       </form>
     </div>

@@ -70,8 +70,8 @@ export default function HomePage() {
           Rejoins ta ligue privée · Pronostique tous les matchs · Grimpe au classement
         </p>
 
-        {/* Compte à rebours */}
-        <Countdown />
+        {/* Compte à rebours — nextMatchAt null = tournoi en cours */}
+        <Countdown nextMatchAt={null} />
       </main>
 
     </div>
