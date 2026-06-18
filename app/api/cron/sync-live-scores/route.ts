@@ -1,88 +1,118 @@
 // @ts-nocheck
-// Cron Job : synchronise les scores live toutes les 60 secondes
-// Protégé par CRON_SECRET — appel uniquement depuis Vercel Cron ou manuel avec le header
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { getLiveFixture } from "@/lib/api-football";
 import { calculatePoints } from "@/lib/points";
 
+// Traduction noms FR → anglais API Football
+const FR_TO_EN: Record<string, string> = {
+  "etats unis": "united states", "mexique": "mexico",
+  "afrique du sud": "south africa", "coree du sud": "south korea",
+  "tchequie": "czechia", "republique tcheque": "czech republic",
+  "bosnie herzegovine": "bosnia and herzegovina",
+  "ouzbekistan": "uzbekistan", "colombie": "colombia",
+  "suisse": "switzerland", "angleterre": "england", "croatie": "croatia",
+  "nouvelle zelande": "new zealand", "equateur": "ecuador",
+  "perou": "peru", "chili": "chile", "argentine": "argentina",
+  "bresil": "brazil", "algerie": "algeria", "senegal": "senegal",
+  "allemagne": "germany", "arabie saoudite": "saudi arabia",
+  "japon": "japan", "australie": "australia", "espagne": "spain",
+  "maroc": "morocco", "tunisie": "tunisia", "egypte": "egypt",
+  "serbie": "serbia", "georgie": "georgia", "suede": "sweden",
+  "cameroun": "cameroon", "ecosse": "scotland", "italie": "italy",
+  "slovaquie": "slovakia", "pays bas": "netherlands",
+  "pologne": "poland", "autriche": "austria", "belgique": "belgium",
+  "danemark": "denmark", "rd congo": "dr congo",
+  "cote d ivoire": "ivory coast", "cote divoire": "ivory coast",
+};
+
+function norm(s: string): string {
+  return s.toLowerCase().normalize("NFD")
+    .replace(/[̀-ͯ]/g, "").replace(/&/g, "and")
+    .replace(/-/g, " ").replace(/['''`]/g, "")
+    .replace(/\s+/g, " ").trim();
+}
+function toEn(fr: string): string { const n = norm(fr); return FR_TO_EN[n] ?? n; }
+function teamsMatch(db: string, api: string): boolean {
+  const a = norm(toEn(db)), b = norm(api);
+  return a === b || norm(db) === b || a.includes(b) || b.includes(a);
+}
+
 export async function GET(req: NextRequest) {
-  // Sécurité : vérifie le secret du cron
-  const secret = req.headers.get("x-cron-secret");
+  const secret = req.headers.get("x-cron-secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const API_KEY = process.env.API_FOOTBALL_KEY;
+  if (!API_KEY) return NextResponse.json({ error: "API_FOOTBALL_KEY manquant" }, { status: 500 });
+
   const supabase = createAdminClient();
-  const now = new Date();
-  const in2hours = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
-  // Récupère les matchs live ou qui commencent dans les 2 heures et ont un fixture_id
-  const { data: matches, error } = await supabase
+  // Matchs non terminés dont le coup d'envoi est passé depuis 95+ min
+  const cutoff = new Date(Date.now() - 95 * 60 * 1000).toISOString();
+  const { data: pending } = await supabase
     .from("matches")
-    .select("*")
-    .in("status", ["upcoming", "live"])
-    .lte("kickoff_at", in2hours.toISOString())
-    .not("api_football_fixture_id", "is", null);
+    .select("id, home_team, away_team, kickoff_at")
+    .neq("status", "finished")
+    .lt("kickoff_at", cutoff)
+    .order("kickoff_at");
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!pending?.length) return NextResponse.json({ success: true, updated: 0 });
+
+  // Grouper par date
+  const byDate: Record<string, typeof pending> = {};
+  for (const m of pending) {
+    const d = m.kickoff_at.slice(0, 10);
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(m);
   }
 
-  if (!matches?.length) {
-    return NextResponse.json({ message: "Aucun match à synchroniser", synced: 0 });
-  }
+  let updated = 0;
 
-  let synced = 0;
-
-  for (const match of matches) {
+  for (const [date, matches] of Object.entries(byDate)) {
+    let fixtures: any[] = [];
     try {
-      const live = await getLiveFixture(match.api_football_fixture_id as number);
-      if (!live) continue;
+      const r1 = await fetch(
+        `https://v3.football.api-sports.io/fixtures?league=1&season=2026&date=${date}`,
+        { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
+      );
+      fixtures = (await r1.json())?.response ?? [];
 
-      // Détermine le nouveau statut
-      let newStatus: "upcoming" | "live" | "finished" = match.status as "upcoming" | "live" | "finished";
-      if (live.status === "FT") newStatus = "finished";
-      else if (["1H", "2H", "HT", "ET", "P"].includes(live.status)) newStatus = "live";
-
-      // Met à jour le match
-      await supabase
-        .from("matches")
-        .update({
-          home_score: live.homeScore,
-          away_score: live.awayScore,
-          minute: live.minute,
-          status: newStatus,
-          last_synced_at: new Date().toISOString(),
-        })
-        .eq("id", match.id);
-
-      // Si le match vient de se terminer, calcule les points de tous les pronostics
-      if (newStatus === "finished" && match.status !== "finished") {
-        const { data: predictions } = await supabase
-          .from("predictions")
-          .select("id, home_score_pred, away_score_pred")
-          .eq("match_id", match.id);
-
-        for (const pred of predictions ?? []) {
-          const points = calculatePoints(
-            pred.home_score_pred,
-            pred.away_score_pred,
-            live.homeScore ?? 0,
-            live.awayScore ?? 0
-          );
-          await supabase
-            .from("predictions")
-            .update({ points_earned: points, is_locked: true })
-            .eq("id", pred.id);
-        }
+      if (!fixtures.length) {
+        const r2 = await fetch(
+          `https://v3.football.api-sports.io/fixtures?date=${date}`,
+          { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
+        );
+        fixtures = (await r2.json())?.response ?? [];
       }
+    } catch { continue; }
 
-      synced++;
-    } catch (err) {
-      console.error(`Erreur sync match ${match.id}:`, err);
+    const done = fixtures.filter((f: any) => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short));
+
+    for (const m of matches) {
+      const fix = done.find((f: any) =>
+        teamsMatch(m.home_team, f.teams?.home?.name ?? "") &&
+        teamsMatch(m.away_team, f.teams?.away?.name ?? "")
+      );
+      if (!fix) continue;
+
+      const hs = fix.goals?.home ?? 0, as_ = fix.goals?.away ?? 0;
+      const { error } = await supabase.from("matches")
+        .update({ home_score: hs, away_score: as_, status: "finished" }).eq("id", m.id);
+      if (error) continue;
+
+      const { data: preds } = await supabase.from("predictions")
+        .select("id, home_score_pred, away_score_pred").eq("match_id", m.id);
+
+      if (preds?.length) {
+        await Promise.all(preds.map((p: any) => {
+          const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
+          return supabase.from("predictions").update({ points_earned: pts, is_locked: true }).eq("id", p.id);
+        }));
+      }
+      updated++;
     }
   }
 
-  return NextResponse.json({ synced, total: matches.length });
+  return NextResponse.json({ success: true, updated });
 }
