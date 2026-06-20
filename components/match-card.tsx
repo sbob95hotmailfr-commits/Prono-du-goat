@@ -81,72 +81,71 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
 
   const content = (
     <div className="transition-colors border-b border-white/[0.06] last:border-0" style={{ background: "#1E2D42" }}>
-      <div className="px-4 py-3">
+      <div className="flex items-center gap-3 px-4 py-3">
 
-        {/* Badge statut */}
-        <div className="flex justify-center mb-2">
-          {live && (
-            <span className="flex items-center gap-1.5 bg-[#E8192C] text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse">
-              <span className="w-1.5 h-1.5 bg-white rounded-full shrink-0" />
-              EN DIRECT {match.minute ? `${match.minute}'` : ""}
-            </span>
-          )}
-          {finished && (
-            <span className="text-[11px] font-bold text-[#00A650] uppercase tracking-wide">Terminé</span>
-          )}
-          {!finished && !live && (
-            <span className="text-[11px] text-gray-500">{formatDate(match.kickoff_at)}</span>
-          )}
-        </div>
-
-        {/* Équipes + score */}
-        <div className="flex items-center gap-2">
-          {/* Domicile */}
-          <div className="flex-1 flex items-center justify-end gap-2">
-            <span className="font-semibold text-sm text-white text-right leading-tight">{match.home_team}</span>
-            <Flag team={match.home_team} size="md" />
-          </div>
-
-          {/* Score ou tiret */}
-          <div className="shrink-0 min-w-[60px] text-center">
-            {showResult ? (
-              <span className="font-bold text-xl text-white tracking-wide">
-                {match.home_score} – {match.away_score}
+        {/* Contenu principal */}
+        <div className="flex-1 min-w-0">
+          {/* Badge statut */}
+          <div className="flex justify-center mb-2">
+            {live && (
+              <span className="flex items-center gap-1.5 bg-[#E8192C] text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse">
+                <span className="w-1.5 h-1.5 bg-white rounded-full shrink-0" />
+                EN DIRECT {match.minute ? `${match.minute}'` : ""}
               </span>
-            ) : (
-              <span className="font-bold text-xl text-white/20">–</span>
+            )}
+            {finished && (
+              <span className="text-[11px] font-bold text-[#00A650] uppercase tracking-wide">Terminé</span>
+            )}
+            {!finished && !live && (
+              <span className="text-[11px] text-gray-500">{formatDate(match.kickoff_at)}</span>
             )}
           </div>
 
-          {/* Extérieur */}
-          <div className="flex-1 flex items-center gap-2">
-            <Flag team={match.away_team} size="md" />
-            <span className="font-semibold text-sm text-white leading-tight">{match.away_team}</span>
+          {/* Équipes + score */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center justify-end gap-2">
+              <span className="font-semibold text-sm text-white text-right leading-tight">{match.home_team}</span>
+              <Flag team={match.home_team} size="md" />
+            </div>
+
+            <div className="shrink-0 min-w-[60px] text-center">
+              {showResult ? (
+                <span className="font-bold text-xl text-white tracking-wide">
+                  {match.home_score} – {match.away_score}
+                </span>
+              ) : (
+                <span className="font-bold text-xl text-white/20">–</span>
+              )}
+            </div>
+
+            <div className="flex-1 flex items-center gap-2">
+              <Flag team={match.away_team} size="md" />
+              <span className="font-semibold text-sm text-white leading-tight">{match.away_team}</span>
+            </div>
+          </div>
+
+          {/* Groupe + statut */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="text-[11px] text-gray-500">{match.stage}</span>
+            {leagueId && (finished || locked) && (
+              <>
+                <span className="text-white/10 text-[10px]">·</span>
+                {finished ? (
+                  <span className="text-[11px] text-gray-500">Voir les pronostics →</span>
+                ) : (
+                  <span className="text-[11px] text-gray-500">🔒 Verrouillé</span>
+                )}
+              </>
+            )}
           </div>
         </div>
 
-        {/* Groupe + ballon centré */}
-        <div className="flex items-center justify-center gap-3 mt-3">
-          <span className="text-[11px] text-gray-500">{match.stage}</span>
-          {leagueId && (finished || locked) && (
-            <>
-              <span className="text-white/10 text-[10px]">·</span>
-              {finished ? (
-                <span className="text-[11px] text-gray-500">Voir les pronostics →</span>
-              ) : (
-                <span className="text-[11px] text-gray-500">🔒 Verrouillé</span>
-              )}
-            </>
-          )}
-          {showBall && (
-            <>
-              <span className="text-white/10 text-[10px]">·</span>
-              <div onClick={(e) => e.stopPropagation()}>
-                <BallAction href={href!} predicted={!!predicted} />
-              </div>
-            </>
-          )}
-        </div>
+        {/* Ballon — ancré à droite, centré verticalement */}
+        {showBall && (
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <BallAction href={href!} predicted={!!predicted} />
+          </div>
+        )}
       </div>
     </div>
   );
