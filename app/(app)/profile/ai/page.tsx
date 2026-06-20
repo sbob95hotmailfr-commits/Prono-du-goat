@@ -22,20 +22,14 @@ export default function AiProfilePage() {
       if (!user) { setLoading(false); return; }
       setUserId(user.id);
 
-      // Récupère le profil utilisateur
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .single() as any;
+        .from("profiles").select("username").eq("id", user.id).single() as any;
       setUsername(profile?.username ?? "");
 
-      // Récupère la première ligue de l'utilisateur
       const { data: memberships } = await supabase
         .from("league_members")
         .select("league_id, leagues(id, name)")
-        .eq("user_id", user.id)
-        .limit(1) as any;
+        .eq("user_id", user.id).limit(1) as any;
 
       const firstLeague = memberships?.[0];
       if (firstLeague) {
@@ -43,13 +37,9 @@ export default function AiProfilePage() {
         setLeagueId(lid);
         setLeagueName(firstLeague.leagues?.name ?? "");
 
-        // Cherche le profil IA existant
         const { data: existing } = await supabase
-          .from("ai_profiles")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("league_id", lid)
-          .single() as any;
+          .from("ai_profiles").select("*")
+          .eq("user_id", user.id).eq("league_id", lid).single() as any;
         setAiProfile(existing);
       }
 
@@ -62,7 +52,6 @@ export default function AiProfilePage() {
     if (!userId || !leagueId) return;
     setGenerating(true);
     setError(null);
-
     try {
       const res = await fetch("/api/ai/generate-profile", {
         method: "POST",
@@ -89,79 +78,79 @@ export default function AiProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center">
-        <p className="text-gray-400 text-sm">Chargement…</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0A1628" }}>
+        <p className="text-gray-500 text-sm">Chargement…</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] px-4 py-8">
+    <div className="min-h-screen px-4 py-8" style={{ background: "#0A1628" }}>
       <div className="max-w-md mx-auto space-y-4">
 
         {/* En-tête */}
-        <div className="bg-black rounded-xl px-4 py-3">
-          <p className="text-[9px] text-gray-400 uppercase tracking-widest">COUPE DU MONDE DE LA FIFA 2026™</p>
+        <div className="rounded-xl px-4 py-3" style={{ background: "#0D1B2E" }}>
+          <p className="text-[9px] text-gray-500 uppercase tracking-widest">COUPE DU MONDE DE LA FIFA 2026™</p>
           <p className="font-bold text-white text-sm">Mon Profil IA</p>
           {leagueName && <p className="text-xs text-gray-500 mt-0.5">{leagueName}</p>}
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-            <p className="text-[#E8192C] text-sm font-medium">{error}</p>
+          <div className="rounded-xl p-4" style={{ background: "rgba(232,25,44,0.1)", border: "1px solid rgba(232,25,44,0.25)" }}>
+            <p className="text-sm font-medium" style={{ color: "#E8192C" }}>{error}</p>
           </div>
         )}
 
-        {/* Profil IA existant */}
         {aiProfile ? (
-          <div className="bg-white rounded-2xl shadow overflow-hidden">
-            <div className="bg-[#0D1B2E] px-6 py-8 text-center">
+          <div className="rounded-2xl overflow-hidden" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div className="px-6 py-8 text-center" style={{ background: "#0D1B2E" }}>
               <p className="text-4xl mb-3">🤖</p>
-              <h2 className="font-bold text-[#F5A623] text-2xl leading-tight">{aiProfile.profile_type}</h2>
+              <h2 className="font-bold text-2xl leading-tight" style={{ color: "#F5A623" }}>{aiProfile.profile_type}</h2>
               <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest">
                 Généré le {new Date(aiProfile.generated_at).toLocaleDateString("fr-FR")}
               </p>
             </div>
             <div className="p-5">
-              <p className="text-[#1A1A1A] text-sm leading-relaxed">{aiProfile.description}</p>
+              <p className="text-gray-300 text-sm leading-relaxed">{aiProfile.description}</p>
             </div>
-            <div className="border-t border-gray-100 p-4 flex gap-3">
+            <div className="p-4 flex gap-3" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
               <button
                 onClick={generate}
                 disabled={generating}
-                className="flex-1 border border-gray-200 text-gray-600 text-sm font-semibold py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex-1 text-sm font-semibold py-2 rounded-lg transition-colors disabled:opacity-50"
+                style={{ border: "1px solid rgba(255,255,255,0.12)", color: "#9ca3af" }}
               >
                 {generating ? "Génération…" : "🔄 Actualiser"}
               </button>
               <button
                 onClick={share}
-                className="flex-1 bg-[#003DA5] text-white text-sm font-semibold py-2 rounded-lg hover:bg-[#002d7a] transition-colors"
+                className="flex-1 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                style={{ background: "#003DA5" }}
               >
                 {copied ? "✓ Copié !" : "🔗 Partager"}
               </button>
             </div>
           </div>
         ) : (
-          /* Pas encore de profil */
-          <div className="bg-white rounded-2xl shadow p-8 text-center">
+          <div className="rounded-2xl p-8 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
             <p className="text-5xl mb-4">🤖</p>
-            <h2 className="font-bold text-[#0D1B2E] text-lg mb-2">Ton profil IA</h2>
-            <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+            <h2 className="font-bold text-white text-lg mb-2">Ton profil IA</h2>
+            <p className="text-gray-500 text-sm mb-6 leading-relaxed">
               Claude analyse tes pronostics et génère ton profil de pronostiqueur unique.
               Il faut au moins 5 pronostics calculés.
             </p>
             <button
               onClick={generate}
               disabled={generating || !leagueId}
-              className="flex items-center justify-center gap-2 mx-auto bg-[#003DA5] hover:bg-[#002d7a]
-                         disabled:opacity-50 text-white font-bold px-6 py-3 rounded-lg transition-colors"
+              className="inline-flex items-center justify-center gap-2 text-black font-bold px-6 py-3 rounded-lg transition-colors disabled:opacity-50"
+              style={{ background: "#F5A623" }}
             >
               {generating ? "Analyse en cours…" : "✨ Générer mon profil IA"}
             </button>
           </div>
         )}
 
-        <a href="/dashboard" className="block text-center text-xs text-gray-400 hover:text-gray-600 py-2">
+        <a href="/dashboard" className="block text-center text-xs text-gray-600 hover:text-gray-400 py-2 transition-colors">
           ← Retour au tableau de bord
         </a>
       </div>
