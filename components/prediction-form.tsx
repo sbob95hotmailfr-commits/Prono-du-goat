@@ -76,29 +76,29 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
 
   if (success) {
     return (
-      <div className="bg-white rounded-2xl shadow p-6 text-center">
+      <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
         <div className="flex justify-center mb-3">
           <div className="ball-frozen" style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: "3px solid #00A650", boxShadow: "0 0 16px rgba(0,166,80,0.4)" }}>
             <Image src="/ball.png" alt="Pronostic enregistré" width={80} height={80} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
           </div>
         </div>
-        <p className="font-bold text-gray-800">Pronostic enregistré !</p>
-        <p className="font-mono text-2xl font-bold text-green-600 mt-1">
+        <p className="font-bold text-white">Pronostic enregistré !</p>
+        <p className="font-mono text-2xl font-bold mt-1" style={{ color: "#00A650" }}>
           {homeScore} – {awayScore}
         </p>
-        <p className="text-xs text-gray-400 mt-2">Redirection en cours…</p>
+        <p className="text-xs text-gray-500 mt-2">Redirection en cours…</p>
       </div>
     );
   }
 
   return (
-    <div className="card p-6">
-      <h2 className="font-bold text-dark text-center mb-6">
+    <div className="rounded-2xl p-6" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+      <h2 className="font-bold text-white text-center mb-6">
         {existingPrediction ? "Modifier mon pronostic" : "Mon pronostic"}
       </h2>
 
       {error && (
-        <div className="bg-red-50 border border-danger text-danger text-sm rounded-lg p-3 mb-4">
+        <div className="text-sm rounded-lg p-3 mb-4" style={{ background: "rgba(232,25,44,0.1)", border: "1px solid rgba(232,25,44,0.3)", color: "#E8192C" }}>
           {error}
         </div>
       )}
@@ -113,11 +113,12 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
               max={20}
               value={homeScore}
               onChange={(e) => setHomeScore(Math.max(0, parseInt(e.target.value) || 0))}
-              className="score-input"
+              className="font-mono text-2xl text-center w-12 bg-transparent text-white border-b-2 focus:outline-none"
+              style={{ borderColor: "rgba(255,255,255,0.2)" }}
             />
           </div>
 
-          <span className="text-2xl text-muted font-bold">–</span>
+          <span className="text-2xl font-bold text-white/30">–</span>
 
           <div className="text-center">
             <input
@@ -126,7 +127,8 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
               max={20}
               value={awayScore}
               onChange={(e) => setAwayScore(Math.max(0, parseInt(e.target.value) || 0))}
-              className="score-input"
+              className="font-mono text-2xl text-center w-12 bg-transparent text-white border-b-2 focus:outline-none"
+              style={{ borderColor: "rgba(255,255,255,0.2)" }}
             />
           </div>
         </div>
@@ -135,20 +137,24 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
         <div className="flex items-center justify-center gap-6 mb-8">
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setHomeScore(Math.max(0, homeScore - 1))}
-              className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">−</button>
-            <span className="font-mono font-bold w-6 text-center">{homeScore}</span>
+              className="w-8 h-8 rounded-full text-lg font-bold text-gray-400 transition-colors hover:text-white"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}>−</button>
+            <span className="font-mono font-bold w-6 text-center text-white">{homeScore}</span>
             <button type="button" onClick={() => setHomeScore(Math.min(20, homeScore + 1))}
-              className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">+</button>
+              className="w-8 h-8 rounded-full text-lg font-bold text-gray-400 transition-colors hover:text-white"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}>+</button>
           </div>
 
           <span className="w-4" />
 
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => setAwayScore(Math.max(0, awayScore - 1))}
-              className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">−</button>
-            <span className="font-mono font-bold w-6 text-center">{awayScore}</span>
+              className="w-8 h-8 rounded-full text-lg font-bold text-gray-400 transition-colors hover:text-white"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}>−</button>
+            <span className="font-mono font-bold w-6 text-center text-white">{awayScore}</span>
             <button type="button" onClick={() => setAwayScore(Math.min(20, awayScore + 1))}
-              className="w-8 h-8 rounded-full border border-border text-lg font-bold text-muted hover:border-primary hover:text-primary transition-colors">+</button>
+              className="w-8 h-8 rounded-full text-lg font-bold text-gray-400 transition-colors hover:text-white"
+              style={{ border: "1px solid rgba(255,255,255,0.15)" }}>+</button>
           </div>
         </div>
 

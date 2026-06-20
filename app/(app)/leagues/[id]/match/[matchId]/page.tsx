@@ -88,47 +88,47 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7]">
+    <div className="min-h-screen" style={{ background: "#0A1628" }}>
       <WcNav leagueId={id} leagueName={m.stage} isAdmin={isAdmin} activeTab="matches" />
 
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
 
         {/* Affiche du match */}
-        <div className="bg-white rounded-2xl shadow overflow-hidden">
-          <div className="bg-[#0D1B2E] px-4 py-2 text-center">
+        <div className="rounded-2xl overflow-hidden" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div className="px-4 py-2 text-center" style={{ background: "#0D1B2E" }}>
             <p className="text-xs text-gray-400 uppercase tracking-widest">{formatDate(m.kickoff_at)}</p>
           </div>
           <div className="p-6">
             <div className="flex items-center justify-center gap-4">
               <div className="flex-1 text-center">
                 <div className="flex justify-center mb-3">
-                  <FlagImage team={m.home_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover border border-gray-100" />
+                  <FlagImage team={m.home_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
                 </div>
-                <p className="font-bold text-[#0D1B2E] text-sm">{m.home_team}</p>
+                <p className="font-bold text-white text-sm">{m.home_team}</p>
               </div>
 
               {finished && m.home_score != null ? (
                 <div className="text-center px-2">
-                  <div className="bg-[#0D1B2E] rounded-xl px-5 py-3">
+                  <div className="rounded-xl px-5 py-3" style={{ background: "#0D1B2E" }}>
                     <p className="font-mono text-3xl font-bold text-white tracking-widest">
                       {m.home_score} – {m.away_score}
                     </p>
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-2 uppercase tracking-wider">Score final</p>
+                  <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-wider">Score final</p>
                 </div>
               ) : (
                 <div className="text-center px-4">
-                  <div className="border-2 border-dashed border-gray-200 rounded-xl px-4 py-2">
-                    <span className="text-gray-300 font-bold text-xl">VS</span>
+                  <div className="rounded-xl px-4 py-2" style={{ border: "2px dashed rgba(255,255,255,0.12)" }}>
+                    <span className="font-bold text-xl" style={{ color: "rgba(255,255,255,0.2)" }}>VS</span>
                   </div>
                 </div>
               )}
 
               <div className="flex-1 text-center">
                 <div className="flex justify-center mb-3">
-                  <FlagImage team={m.away_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover border border-gray-100" />
+                  <FlagImage team={m.away_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
                 </div>
-                <p className="font-bold text-[#0D1B2E] text-sm">{m.away_team}</p>
+                <p className="font-bold text-white text-sm">{m.away_team}</p>
               </div>
             </div>
           </div>
@@ -136,57 +136,57 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
         {/* Zone pronostic perso */}
         {finished && prediction ? (
-          <div className="bg-white rounded-2xl shadow p-6 text-center">
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-3">Mon pronostic</p>
-            <p className="font-mono text-5xl font-bold text-[#0D1B2E] mb-4">
+          <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <p className="text-xs text-gray-500 uppercase tracking-wider mb-3">Mon pronostic</p>
+            <p className="font-mono text-5xl font-bold text-white mb-4">
               {prediction.home_score_pred} – {prediction.away_score_pred}
             </p>
             {prediction.points_earned === 3 && (
               <>
-                <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 font-bold px-4 py-2 rounded-full inline-flex items-center gap-2 text-sm">
+                <div className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.3)", color: "#F5A623" }}>
                   ⭐ Score exact — +3 points !
                 </div>
                 <ConfettiClient />
               </>
             )}
             {prediction.points_earned === 1 && (
-              <div className="bg-green-50 border border-green-200 text-[#00A650] font-bold px-4 py-2 rounded-full inline-flex text-sm">
+              <div className="inline-flex text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(0,166,80,0.15)", border: "1px solid rgba(0,166,80,0.3)", color: "#00A650" }}>
                 ✓ Bon résultat — +1 point
               </div>
             )}
             {prediction.points_earned === 0 && (
-              <div className="bg-gray-50 border border-gray-200 text-gray-500 font-bold px-4 py-2 rounded-full inline-flex text-sm">
+              <div className="inline-flex text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#6b7280" }}>
                 ✗ Raté — 0 point
               </div>
             )}
           </div>
         ) : finished && !prediction ? (
-          <div className="bg-white rounded-2xl shadow p-6 text-center">
-            <p className="text-gray-400 text-sm">Tu n&apos;as pas pronostiqué ce match.</p>
+          <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <p className="text-gray-500 text-sm">Tu n&apos;as pas pronostiqué ce match.</p>
           </div>
         ) : locked && prediction ? (
-          <div className="bg-white rounded-2xl shadow p-6 text-center">
+          <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="text-3xl mb-2">🔒</div>
-            <p className="font-bold text-gray-700 mb-1">Pronostic verrouillé</p>
+            <p className="font-bold text-white mb-1">Pronostic verrouillé</p>
             <p className="text-gray-500 text-sm mb-3">Ton pronostic :</p>
-            <p className="font-mono text-4xl font-bold text-[#00A650]">
+            <p className="font-mono text-4xl font-bold" style={{ color: "#00A650" }}>
               {prediction.home_score_pred} – {prediction.away_score_pred}
             </p>
           </div>
         ) : locked && !prediction ? (
-          <div className="bg-white rounded-2xl shadow p-6 text-center">
+          <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div className="text-4xl mb-3">🔒</div>
-            <p className="font-bold text-gray-700 mb-1">Pronostic verrouillé</p>
-            <p className="text-gray-400 text-sm mt-2">Tu n&apos;as pas pronostiqué ce match.</p>
+            <p className="font-bold text-white mb-1">Pronostic verrouillé</p>
+            <p className="text-gray-500 text-sm mt-2">Tu n&apos;as pas pronostiqué ce match.</p>
           </div>
         ) : prediction ? (
           <div>
-            <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 text-center">
-              <p className="text-sm text-[#00A650] font-semibold mb-1">✓ Pronostic enregistré</p>
-              <p className="font-mono text-3xl font-bold text-[#0D1B2E]">
+            <div className="rounded-2xl p-4 mb-4 text-center" style={{ background: "rgba(0,166,80,0.1)", border: "1px solid rgba(0,166,80,0.25)" }}>
+              <p className="text-sm font-semibold mb-1" style={{ color: "#00A650" }}>✓ Pronostic enregistré</p>
+              <p className="font-mono text-3xl font-bold text-white">
                 {prediction.home_score_pred} – {prediction.away_score_pred}
               </p>
-              <p className="text-xs text-gray-400 mt-1">Tu peux le modifier jusqu&apos;au coup de sifflet</p>
+              <p className="text-xs text-gray-500 mt-1">Tu peux le modifier jusqu&apos;au coup de sifflet</p>
             </div>
             <PredictionForm matchId={matchId} leagueId={id} existingPrediction={prediction} kickoffAt={m.kickoff_at} />
           </div>
@@ -194,7 +194,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <PredictionForm matchId={matchId} leagueId={id} existingPrediction={null} kickoffAt={m.kickoff_at} />
         )}
 
-        {/* Section Pronostic Buteur — spec 5A */}
+        {/* Section Pronostic Buteur */}
         {prediction && players.length > 0 && (
           <ScorerForm
             predictionId={prediction.id}
@@ -206,42 +206,42 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
         {/* Pronostics de toute la ligue — visibles après verrouillage */}
         {(locked || finished) && (
-          <div className="bg-white rounded-2xl shadow overflow-hidden">
-            <div className="bg-[#0D1B2E] px-4 py-3 flex items-center justify-between">
+          <div className="rounded-2xl overflow-hidden" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ background: "#0D1B2E" }}>
               <span className="font-bold text-white text-sm">Pronostics de la ligue</span>
               <span className="text-xs text-gray-400">{allPredictions.length} pronostic{allPredictions.length > 1 ? "s" : ""}</span>
             </div>
 
             {!allPredictions.length ? (
-              <div className="p-6 text-center text-gray-400 text-sm">
+              <div className="p-6 text-center text-gray-500 text-sm">
                 Aucun pronostic pour ce match.
               </div>
             ) : (
-              <div className="divide-y divide-gray-50">
+              <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
                 {allPredictions.map((p: any, i: number) => {
                   const isMe = p.user_id === user.id;
-                  const pointsBg =
-                    p.points_earned === 3 ? "bg-yellow-50 text-yellow-600" :
-                    p.points_earned === 1 ? "bg-green-50 text-[#00A650]" :
-                    p.points_earned === 0 ? "bg-gray-50 text-gray-400" :
-                    "bg-gray-50 text-gray-400";
+                  const pointsStyle =
+                    p.points_earned === 3 ? { background: "rgba(245,166,35,0.15)", color: "#F5A623" } :
+                    p.points_earned === 1 ? { background: "rgba(0,166,80,0.15)", color: "#00A650" } :
+                    { background: "rgba(255,255,255,0.06)", color: "#6b7280" };
 
                   return (
                     <div
                       key={i}
-                      className={`flex items-center gap-3 px-4 py-3 ${isMe ? "bg-green-50/50" : ""}`}
+                      className="flex items-center gap-3 px-4 py-3"
+                      style={isMe ? { background: "rgba(0,166,80,0.06)" } : {}}
                     >
-                      <div className="w-8 h-8 rounded-full bg-[#0D1B2E] flex items-center justify-center text-white font-bold text-xs shrink-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0" style={{ background: "#0D1B2E" }}>
                         {(p.username?.[0] ?? "?").toUpperCase()}
                       </div>
-                      <span className="flex-1 font-semibold text-sm text-[#0D1B2E]">
-                        {p.username} {isMe && <span className="text-[10px] text-[#00A650] font-bold">(moi)</span>}
+                      <span className="flex-1 font-semibold text-sm text-white">
+                        {p.username} {isMe && <span className="text-[10px] font-bold" style={{ color: "#00A650" }}>(moi)</span>}
                       </span>
-                      <span className="font-mono font-bold text-[#0D1B2E] text-sm">
+                      <span className="font-mono font-bold text-white text-sm">
                         {p.home_score_pred} – {p.away_score_pred}
                       </span>
                       {finished && p.points_earned != null && (
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${pointsBg}`}>
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={pointsStyle}>
                           {p.points_earned === 3 ? "⭐" : p.points_earned === 1 ? "✓" : "✗"} {p.points_earned}pt
                         </span>
                       )}
