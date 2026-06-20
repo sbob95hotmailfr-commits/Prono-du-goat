@@ -2,150 +2,127 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { isMatchLocked } from "@/lib/utils";
-import { FlagImage } from "@/components/flag-image";
-import { MatchCard } from "@/components/match-card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const { data: profile } = await supabase
-    .from("profiles").select("*").eq("id", user.id).single() as any;
-
   const { data: memberships } = await supabase
-    .from("league_members").select("league_id, leagues(id, name)")
+    .from("league_members")
+    .select("league_id, leagues(id, name, code, admin_id)")
     .eq("user_id", user.id) as any;
 
-  const firstLeagueId = (memberships as any[])?.[0]?.league_id as string | undefined;
+  const leagues = (memberships ?? []).map((m: any) => m.leagues).filter(Boolean);
 
-  const { data: standing } = firstLeagueId
-    ? await (supabase.from("league_standings").select("*")
-        .eq("user_id", user.id).eq("league_id", firstLeagueId).single() as any)
-    : { data: null };
+  // Si 1 seule ligue → redirection directe
+  if (leagues.length === 1) {
+    redirect(`/leagues/${leagues[0].id}`);
+  }
 
-  const { data: upcomingMatches } = await supabase
-    .from("matches").select("*").eq("status", "upcoming")
-    .order("kickoff_at", { ascending: true }).limit(5) as any;
+  // Si aucune ligue → page d'onboarding
+  if (leagues.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center"
+        style={{ background: "#0D1525" }}>
+        <div className="text-5xl mb-4">⚽</div>
+        <h1 className="text-white text-2xl font-black mb-2">Bienvenue sur Le Prono du GOAT</h1>
+        <p className="text-gray-400 text-sm mb-8 max-w-xs">
+          Crée ou rejoins une ligue privée pour commencer à pronostiquer.
+        </p>
+        <div className="flex gap-4">
+          <Link href="/leagues/create"
+            className="font-bold px-6 py-3 rounded-xl text-black text-sm"
+            style={{ background: "linear-gradient(135deg,#F5A623,#e8912a)" }}>
+            Créer une ligue
+          </Link>
+          <Link href="/leagues/join"
+            className="font-bold px-6 py-3 rounded-xl text-white text-sm border border-white/20 hover:bg-white/5 transition-colors">
+            Rejoindre
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-  const { data: recentPredictions } = await supabase
-    .from("predictions")
-    .select("*, matches(home_team, away_team, home_score, away_score, kickoff_at)")
-    .eq("user_id", user.id).order("created_at", { ascending: false }).limit(3) as any;
+  // Plusieurs ligues → sélecteur
+  const { data: profile } = await supabase
+    .from("profiles").select("username").eq("id", user.id).single() as any;
 
-  const { count: predCount } = await supabase
-    .from("predictions").select("*", { count: "exact", head: true })
-    .eq("user_id", user.id) as any;
+  const standings = await Promise.all(
+    leagues.map(async (l: any) => {
+      const { data } = await supabase
+        .from("league_standings")
+        .select("total_points, rank")
+        .eq("user_id", user.id)
+        .eq("league_id", l.id)
+        .single() as any;
+      return { leagueId: l.id, pts: data?.total_points ?? 0 };
+    })
+  );
+  const standingMap = Object.fromEntries(standings.map(s => [s.leagueId, s.pts]));
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header sombre */}
-      <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-6">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen" style={{ background: "#0D1525" }}>
+      {/* Header */}
+      <div className="border-b border-white/5 px-4 py-5" style={{ background: "#111927" }}>
+        <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
-            <p className="text-gray-400 text-xs uppercase tracking-widest mb-0.5">Coupe du Monde 2026</p>
-            <h1 className="text-xl font-bold">Bonjour {profile?.username} 👋</h1>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">FIFA World Cup 2026™</p>
+            <h1 className="text-white font-black text-lg">Bonjour {profile?.username} 👋</h1>
           </div>
           <form action="/auth/signout" method="POST">
-            <button type="submit" className="text-xs text-gray-400 hover:text-white border border-gray-600 rounded-lg px-3 py-1.5 transition-colors">
+            <button type="submit"
+              className="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-3 py-1.5 transition-colors">
               Déconnexion
             </button>
           </form>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-5">
-        {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 mb-6 -mt-4">
-          <div className="bg-white rounded-xl shadow p-4 text-center border-t-4 border-green-500">
-            <p className="font-mono text-4xl font-bold text-green-600">{(standing as any)?.total_points ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Points totaux</p>
-          </div>
-          <div className="bg-white rounded-xl shadow p-4 text-center border-t-4 border-blue-500">
-            <p className="font-mono text-4xl font-bold text-blue-600">{predCount ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-1 font-medium uppercase tracking-wide">Pronos validés</p>
-          </div>
+      {/* Liste des ligues */}
+      <div className="max-w-lg mx-auto px-4 py-8">
+        <p className="text-gray-500 text-xs uppercase tracking-widest mb-4">Mes ligues</p>
+        <div className="space-y-3">
+          {leagues.map((l: any) => (
+            <Link key={l.id} href={`/leagues/${l.id}`}
+              className="flex items-center justify-between rounded-xl px-5 py-4 transition-all hover:scale-[1.01] active:scale-[0.99] group"
+              style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.05)" }}>
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shrink-0"
+                  style={{ background: "#003DA5" }}>
+                  {l.name?.[0]?.toUpperCase() ?? "L"}
+                </div>
+                <div>
+                  <p className="text-white font-bold text-sm">{l.name}</p>
+                  {l.code && <p className="text-gray-500 text-xs font-mono">#{l.code}</p>}
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="font-black text-lg leading-none" style={{ color: "#F5A623" }}>
+                    {standingMap[l.id]}
+                  </p>
+                  <p className="text-gray-600 text-[10px]">pts</p>
+                </div>
+                <span className="text-gray-600 group-hover:text-gray-300 transition-colors">→</span>
+              </div>
+            </Link>
+          ))}
         </div>
 
-        {/* Pas encore dans une ligue */}
-        {!(memberships as any[])?.length && (
-          <div className="bg-white rounded-xl shadow p-6 text-center mb-6">
-            <p className="text-3xl mb-2">⚽</p>
-            <p className="font-bold text-gray-800 mb-1">Rejoins une ligue pour commencer !</p>
-            <p className="text-sm text-gray-500 mb-4">Crée ou rejoins une ligue privée avec tes amis.</p>
-            <div className="flex gap-3 justify-center">
-              <Link href="/leagues/create" className="btn-primary text-sm px-4 py-2">Créer une ligue</Link>
-              <Link href="/leagues/join" className="btn-secondary text-sm px-4 py-2">Rejoindre</Link>
-            </div>
-          </div>
-        )}
-
-        {/* Prochains matchs */}
-        {(upcomingMatches as any[])?.length > 0 && (
-          <section className="mb-6">
-            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <span className="w-1 h-5 bg-green-500 rounded-full inline-block"></span>
-              Prochains matchs
-            </h2>
-            <div className="space-y-2">
-              {(upcomingMatches as any[]).map((match: any) => {
-                const locked = isMatchLocked(match.kickoff_at);
-                return (
-                  <MatchCard
-                    key={match.id}
-                    match={match}
-                    leagueId={firstLeagueId}
-                    locked={locked}
-                    href={firstLeagueId ? `/leagues/${firstLeagueId}/match/${match.id}` : undefined}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Derniers résultats */}
-        {(recentPredictions as any[])?.length > 0 && (
-          <section className="mb-6">
-            <h2 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-              <span className="w-1 h-5 bg-blue-500 rounded-full inline-block"></span>
-              Mes derniers pronos
-            </h2>
-            <div className="space-y-2">
-              {(recentPredictions as any[]).map((pred: any) => {
-                const match = pred.matches;
-                return (
-                  <div key={pred.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <FlagImage team={match?.home_team} size="sm" />
-                      <span className="text-sm text-gray-700">{match?.home_team}</span>
-                      <span className="font-mono font-bold text-sm bg-gray-100 px-2 py-0.5 rounded">
-                        {pred.home_score_pred}-{pred.away_score_pred}
-                      </span>
-                      <span className="text-sm text-gray-700">{match?.away_team}</span>
-                      <FlagImage team={match?.away_team} size="sm" />
-                    </div>
-                    <div className="ml-2 shrink-0">
-                      {pred.points_earned === 3 && <span className="bg-yellow-100 text-yellow-700 text-xs font-bold px-2 py-1 rounded-full">⭐ +3</span>}
-                      {pred.points_earned === 1 && <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">✓ +1</span>}
-                      {pred.points_earned === 0 && match?.home_score != null && <span className="bg-gray-100 text-gray-500 text-xs font-bold px-2 py-1 rounded-full">✗ 0</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        {/* Voir mes ligues */}
-        {(memberships as any[])?.length > 0 && (
-          <Link href="/leagues"
-            className="flex items-center justify-center gap-2 w-full bg-white border-2 border-green-500 text-green-600 font-bold py-3 rounded-xl hover:bg-green-50 transition-colors">
-            Voir mes ligues →
+        {/* Actions */}
+        <div className="flex gap-3 mt-6">
+          <Link href="/leagues/create"
+            className="flex-1 text-center font-bold py-3 rounded-xl text-black text-sm"
+            style={{ background: "linear-gradient(135deg,#F5A623,#e8912a)" }}>
+            + Créer une ligue
           </Link>
-        )}
+          <Link href="/leagues/join"
+            className="flex-1 text-center font-bold py-3 rounded-xl text-white text-sm border border-white/10 hover:bg-white/5 transition-colors">
+            Rejoindre
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import type { Prediction } from "@/types/database";
 
@@ -76,12 +77,16 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
   if (success) {
     return (
       <div className="bg-white rounded-2xl shadow p-6 text-center">
-        <p className="text-4xl mb-2">✅</p>
+        <div className="flex justify-center mb-3">
+          <div className="ball-frozen" style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: "3px solid #00A650", boxShadow: "0 0 16px rgba(0,166,80,0.4)" }}>
+            <Image src="/ball.png" alt="Pronostic enregistré" width={80} height={80} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+          </div>
+        </div>
         <p className="font-bold text-gray-800">Pronostic enregistré !</p>
-        <p className="font-mono text-2xl font-bold text-green-600 mt-2">
+        <p className="font-mono text-2xl font-bold text-green-600 mt-1">
           {homeScore} – {awayScore}
         </p>
-        <p className="text-xs text-gray-400 mt-3">Redirection en cours…</p>
+        <p className="text-xs text-gray-400 mt-2">Redirection en cours…</p>
       </div>
     );
   }
@@ -150,13 +155,30 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
         <button
           type="submit"
           disabled={loading}
-          className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700
-                     disabled:opacity-50 disabled:scale-100
-                     text-white font-bold px-6 py-3 rounded-lg transition-all
-                     hover:scale-105 active:scale-95"
+          className="flex flex-col items-center gap-1 w-full disabled:opacity-60 transition-all"
         >
-          <span className="text-2xl">⚽</span>
-          <span>{loading ? "Enregistrement…" : existingPrediction ? "Mettre à jour" : "Pronostiquer"}</span>
+          <div
+            className={loading ? "ball-frozen" : "ball-beat"}
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: "50%",
+              overflow: "hidden",
+              border: "3px solid #F5A623",
+              boxShadow: "0 0 16px rgba(245,166,35,0.5)",
+            }}
+          >
+            <Image
+              src="/ball.png"
+              alt="Pronostiquer"
+              width={72}
+              height={72}
+              style={{ objectFit: "cover", width: "100%", height: "100%" }}
+            />
+          </div>
+          <span className="text-sm font-black uppercase tracking-widest" style={{ color: "#F5A623" }}>
+            {loading ? "Enregistrement…" : existingPrediction ? "Mettre à jour" : "Pronostiquer"}
+          </span>
         </button>
       </form>
     </div>

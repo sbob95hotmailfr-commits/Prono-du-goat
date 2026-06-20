@@ -62,35 +62,47 @@ const FR_TO_EN: Record<string, string> = {
   "costa rica": "costa rica",
 };
 
+// Noms spécifiques utilisés par API Football
+const API_ALIASES: Record<string, string> = {
+  "turkiye": "turkey",
+  "usa": "united states",
+  "korea republic": "south korea",
+  "republic of ireland": "ireland",
+  "china pr": "china",
+};
+
 function normalize(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")   // supprime les accents
-    .replace(/[&]/g, "and")            // & → and
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[&]/g, "and")
     .replace(/['''`]/g, "")
-    .replace(/[-]/g, " ")              // tirets → espaces
+    .replace(/[-]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function toEnglish(frName: string): string {
-  const norm = normalize(frName);
-  return FR_TO_EN[norm] ?? norm;
+  const n = normalize(frName);
+  return FR_TO_EN[n] ?? n;
+}
+
+function normalizeApi(apiName: string): string {
+  const n = normalize(apiName);
+  return API_ALIASES[n] ?? n;
 }
 
 function teamsMatch(dbName: string, apiName: string): boolean {
   const dbEn = normalize(toEnglish(dbName));
-  const apiNorm = normalize(apiName);
+  const apiNorm = normalizeApi(apiName);
   if (dbEn === apiNorm) return true;
   if (normalize(dbName) === apiNorm) return true;
-  // Correspondance partielle
   if (apiNorm.includes(dbEn) || dbEn.includes(apiNorm)) return true;
-  // Premiers mots (ex: "Korea Republic" vs "South Korea")
-  const dbWords = dbEn.split(" ");
-  const apiWords = apiNorm.split(" ");
-  const shared = dbWords.filter(w => w.length > 3 && apiWords.includes(w));
-  if (shared.length >= 1 && (dbWords.length === 1 || apiWords.length === 1)) return true;
+  // Correspondance par mot significatif (4+ chars)
+  const dbWords = dbEn.split(" ").filter(w => w.length >= 4);
+  const apiWords = apiNorm.split(" ").filter(w => w.length >= 4);
+  if (dbWords.some(w => apiWords.includes(w))) return true;
   return false;
 }
 
@@ -144,6 +156,12 @@ export async function POST(request: Request) {
         { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
       );
       const json = await res.json();
+      // Vérifier quota
+      const remaining = parseInt(res.headers.get("x-ratelimit-requests-remaining") ?? "99");
+      if (remaining === 0 || json?.errors?.rateLimit) {
+        errors.push("⚠️ Quota API Football épuisé (100 req/jour). Réessaie demain.");
+        break;
+      }
       fixtures = json?.response ?? [];
 
       // Essai 2 : si rien, chercher sans filtre de ligue (toutes les compétitions ce jour)

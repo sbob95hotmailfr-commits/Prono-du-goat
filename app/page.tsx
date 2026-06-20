@@ -1,8 +1,20 @@
 import Link from "next/link";
-import { Countdown } from "@/components/countdown";
 import { Trophy } from "@/components/trophy";
+import { HomeMatchPreview } from "@/components/home-match-preview";
+import { createAdminClient } from "@/lib/supabase/server";
 
-export default function HomePage() {
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const supabase = createAdminClient();
+  const { data: nextMatch } = await supabase
+    .from("matches")
+    .select("kickoff_at, home_team, away_team, stage")
+    .eq("status", "upcoming")
+    .order("kickoff_at", { ascending: true })
+    .limit(1)
+    .single() as any;
+
   return (
     <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4 relative overflow-hidden">
       {/* Fond texturé terrain de foot */}
@@ -70,8 +82,15 @@ export default function HomePage() {
           Rejoins ta ligue privée · Pronostique tous les matchs · Grimpe au classement
         </p>
 
-        {/* Compte à rebours — nextMatchAt null = tournoi en cours */}
-        <Countdown nextMatchAt={null} />
+        {/* Prochain match + compte à rebours */}
+        {nextMatch && (
+          <HomeMatchPreview
+            homeTeam={nextMatch.home_team}
+            awayTeam={nextMatch.away_team}
+            kickoffAt={nextMatch.kickoff_at}
+            stage={nextMatch.stage}
+          />
+        )}
       </main>
 
     </div>

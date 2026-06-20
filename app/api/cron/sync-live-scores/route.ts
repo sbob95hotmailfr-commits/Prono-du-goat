@@ -25,6 +25,15 @@ const FR_TO_EN: Record<string, string> = {
   "cote d ivoire": "ivory coast", "cote divoire": "ivory coast",
 };
 
+// Noms spécifiques utilisés par API Football
+const API_ALIASES: Record<string, string> = {
+  "turkiye": "turkey",
+  "usa": "united states",
+  "korea republic": "south korea",
+  "republic of ireland": "ireland",
+  "china pr": "china",
+};
+
 function norm(s: string): string {
   return s.toLowerCase().normalize("NFD")
     .replace(/[̀-ͯ]/g, "").replace(/&/g, "and")
@@ -32,9 +41,17 @@ function norm(s: string): string {
     .replace(/\s+/g, " ").trim();
 }
 function toEn(fr: string): string { const n = norm(fr); return FR_TO_EN[n] ?? n; }
+function normApi(api: string): string { const n = norm(api); return API_ALIASES[n] ?? n; }
 function teamsMatch(db: string, api: string): boolean {
-  const a = norm(toEn(db)), b = norm(api);
-  return a === b || norm(db) === b || a.includes(b) || b.includes(a);
+  const dbEn = norm(toEn(db));
+  const apiEn = normApi(api);
+  if (dbEn === apiEn) return true;
+  if (norm(db) === apiEn) return true;
+  if (dbEn.includes(apiEn) || apiEn.includes(dbEn)) return true;
+  // Correspondance par mot significatif (4+ chars)
+  const dbWords = dbEn.split(" ").filter(w => w.length >= 4);
+  const apiWords = apiEn.split(" ").filter(w => w.length >= 4);
+  return dbWords.some(w => apiWords.includes(w));
 }
 
 export async function GET(req: NextRequest) {
@@ -48,18 +65,20 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Matchs non terminés dont le coup d'envoi est passé depuis 95+ min
+  // Seulement les matchs des 2 derniers jours (conserve le quota API)
   const cutoff = new Date(Date.now() - 95 * 60 * 1000).toISOString();
+  const windowStart = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
   const { data: pending } = await supabase
     .from("matches")
     .select("id, home_team, away_team, kickoff_at")
     .neq("status", "finished")
     .lt("kickoff_at", cutoff)
+    .gt("kickoff_at", windowStart)
     .order("kickoff_at");
 
   if (!pending?.length) return NextResponse.json({ success: true, updated: 0 });
 
-  // Grouper par date
+  // Grouper par date — max 1 date par run pour économiser le quota
   const byDate: Record<string, typeof pending> = {};
   for (const m of pending) {
     const d = m.kickoff_at.slice(0, 10);
@@ -67,9 +86,12 @@ export async function GET(req: NextRequest) {
     byDate[d].push(m);
   }
 
+  // On ne traite qu'une seule date par appel cron (la plus ancienne en attente)
+  const datesToProcess = Object.keys(byDate).sort().slice(0, 1);
   let updated = 0;
 
-  for (const [date, matches] of Object.entries(byDate)) {
+  for (const date of datesToProcess) {
+    const matches = byDate[date];
     let fixtures: any[] = [];
     try {
       const r1 = await fetch(

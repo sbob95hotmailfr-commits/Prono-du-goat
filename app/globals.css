@@ -34,6 +34,25 @@
   }
 }
 
+@keyframes heartbeat {
+  0%   { transform: scale(1); }
+  14%  { transform: scale(1.18); }
+  28%  { transform: scale(1); }
+  42%  { transform: scale(1.12); }
+  56%  { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+.ball-beat {
+  animation: heartbeat 1.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+.ball-frozen {
+  animation: none;
+  transform: scale(1);
+}
+
 @layer components {
   .btn-primary {
     @apply bg-[#003DA5] hover:bg-[#002d7a] text-white font-semibold px-6 py-3 rounded-lg transition-colors duration-200;

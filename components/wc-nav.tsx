@@ -7,16 +7,17 @@ interface WcNavProps {
   code?: string;
   isAdmin?: boolean;
   activeTab: "matches" | "classements" | "stats" | "equipes" | "tableau" | "badges";
+  pendingCount?: number;
 }
 
-export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab }: WcNavProps) {
+export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab, pendingCount }: WcNavProps) {
   const tabs = [
-    { key: "matches",     label: "Matchs",      href: `/leagues/${leagueId}` },
-    { key: "classements", label: "Classements",  href: `/leagues/${leagueId}/groups` },
-    { key: "tableau",     label: "Tableau",      href: `/leagues/${leagueId}/bracket` },
-    { key: "equipes",     label: "Équipes",      href: `/leagues/${leagueId}/teams` },
-    { key: "stats",       label: "Ma ligue",     href: `/leagues/${leagueId}/stats` },
-    { key: "badges",      label: "🏅 Badges",    href: `/leagues/${leagueId}/badges` },
+    { key: "matches",     label: "Matchs",      href: `/leagues/${leagueId}`, badge: pendingCount },
+    { key: "classements", label: "Classements",  href: `/leagues/${leagueId}/groups`, badge: undefined },
+    { key: "tableau",     label: "Tableau",      href: `/leagues/${leagueId}/bracket`, badge: undefined },
+    { key: "equipes",     label: "Équipes",      href: `/leagues/${leagueId}/teams`, badge: undefined },
+    { key: "stats",       label: "Ma ligue",     href: `/leagues/${leagueId}/stats`, badge: undefined },
+    { key: "badges",      label: "🏅 Badges",    href: `/leagues/${leagueId}/badges`, badge: undefined },
   ] as const;
 
   return (
@@ -27,7 +28,14 @@ export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab }: WcNavP
           <div className="flex items-center gap-3">
             <Link href="/leagues" className="text-gray-400 hover:text-white text-sm transition-colors">←</Link>
             <div className="flex items-center gap-2">
-              <Image src="/wc2026.png" alt="FIFA WC2026" width={32} height={32} className="shrink-0" />
+              <Image
+                src="/wc2026.png"
+                alt="FIFA WC2026"
+                width={40}
+                height={40}
+                className="shrink-0"
+                style={{ filter: "drop-shadow(0 0 6px rgba(255,255,255,0.5)) brightness(1.3)" }}
+              />
               <div>
                 <p className="text-[9px] text-gray-400 uppercase tracking-widest leading-none">COUPE DU MONDE DE LA FIFA 2026™</p>
                 <p className="text-sm font-bold text-white leading-tight">{leagueName}</p>
@@ -59,13 +67,18 @@ export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab }: WcNavP
             <Link
               key={tab.key}
               href={tab.href}
-              className={`px-4 py-3 text-xs font-bold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
+              className={`relative px-4 py-3 text-xs font-bold uppercase tracking-wide transition-colors border-b-2 whitespace-nowrap ${
                 activeTab === tab.key
                   ? "border-[#E8192C] text-[#E8192C]"
                   : "border-transparent text-gray-500 hover:text-black"
               }`}
             >
               {tab.label}
+              {tab.badge != null && tab.badge > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-[#E8192C] text-white text-[9px] font-black flex items-center justify-center leading-none">
+                  {tab.badge > 99 ? "99+" : tab.badge}
+                </span>
+              )}
             </Link>
           ))}
         </div>

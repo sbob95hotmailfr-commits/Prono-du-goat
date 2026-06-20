@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { getFlagUrl } from "@/lib/flags";
 import { formatDate } from "@/lib/utils";
 import { ReactionsBar } from "@/components/reactions-bar";
@@ -28,7 +29,7 @@ function Flag({ team, size = "sm" }: { team: string; size?: "sm" | "md" }) {
   const url = getFlagUrl(team, "md");
   const cls = size === "md" ? "w-10 h-7" : "w-8 h-6";
   return (
-    <div className={`${cls} rounded overflow-hidden bg-gray-100 border border-gray-200 shrink-0`}>
+    <div className={`${cls} rounded overflow-hidden shrink-0`} style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}>
       {url
         ? <img src={url} alt={team} className="w-full h-full object-cover" />
         : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gray-400">?</div>
@@ -37,16 +38,52 @@ function Flag({ team, size = "sm" }: { team: string; size?: "sm" | "md" }) {
   );
 }
 
+function BallAction({ href, predicted }: { href: string; predicted: boolean }) {
+  return (
+    <Link
+      href={href}
+      title={predicted ? "Voir mon pronostic" : "Faire mon pronostic"}
+      className="flex flex-col items-center gap-1 shrink-0"
+    >
+      <div
+        className={predicted ? "ball-frozen" : "ball-beat"}
+        style={{
+          width: 42,
+          height: 42,
+          borderRadius: "50%",
+          overflow: "hidden",
+          border: `2px solid ${predicted ? "#00A650" : "#F5A623"}`,
+          boxShadow: predicted
+            ? "0 0 8px rgba(0,166,80,0.4)"
+            : "0 0 10px rgba(245,166,35,0.5)",
+        }}
+      >
+        <Image
+          src="/ball.png"
+          alt="Pronostiquer"
+          width={42}
+          height={42}
+          style={{ objectFit: "cover", width: "100%", height: "100%" }}
+        />
+      </div>
+      <span className="text-[9px] font-black uppercase tracking-wide" style={{ color: predicted ? "#00A650" : "#F5A623" }}>
+        {predicted ? "✓ Fait" : "Prono"}
+      </span>
+    </Link>
+  );
+}
+
 export function MatchCard({ match, leagueId, locked, showScore, predicted, href }: MatchCardProps) {
   const finished = match.status === "finished";
   const live = match.status === "live";
   const showResult = (finished && showScore && match.home_score != null) || live;
+  const showBall = leagueId && href && !finished && !locked;
 
   const content = (
-    <div className="bg-white hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0">
+    <div className="transition-colors border-b border-white/[0.06] last:border-0" style={{ background: "#1E2D42" }}>
       <div className="px-4 py-3">
 
-        {/* Badge statut — spec 5H : badge rouge animé avec la minute */}
+        {/* Badge statut */}
         <div className="flex justify-center mb-2">
           {live && (
             <span className="flex items-center gap-1.5 bg-[#E8192C] text-white text-[10px] font-bold px-2.5 py-1 rounded-full animate-pulse">
@@ -58,53 +95,58 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
             <span className="text-[11px] font-bold text-[#00A650] uppercase tracking-wide">Terminé</span>
           )}
           {!finished && !live && (
-            <span className="text-[11px] text-gray-400">{formatDate(match.kickoff_at)}</span>
+            <span className="text-[11px] text-gray-500">{formatDate(match.kickoff_at)}</span>
           )}
         </div>
 
-        {/* Équipes + score */}
-        <div className="flex items-center gap-3">
+        {/* Équipes + score + ballon */}
+        <div className="flex items-center gap-2">
+          {/* Domicile */}
           <div className="flex-1 flex items-center justify-end gap-2">
-            <span className="font-semibold text-sm text-[#1A1A1A] text-right leading-tight">{match.home_team}</span>
+            <span className="font-semibold text-sm text-white text-right leading-tight">{match.home_team}</span>
             <Flag team={match.home_team} size="md" />
           </div>
 
-          <div className="shrink-0 min-w-[70px] text-center">
+          {/* Score ou tiret */}
+          <div className="shrink-0 min-w-[60px] text-center">
             {showResult ? (
-              <span className="font-bold text-xl text-[#1A1A1A] tracking-wide">
+              <span className="font-bold text-xl text-white tracking-wide">
                 {match.home_score} – {match.away_score}
               </span>
             ) : (
-              <span className="font-bold text-xl text-gray-300">–</span>
+              <span className="font-bold text-xl text-white/20">–</span>
             )}
           </div>
 
+          {/* Extérieur */}
           <div className="flex-1 flex items-center gap-2">
             <Flag team={match.away_team} size="md" />
-            <span className="font-semibold text-sm text-[#1A1A1A] leading-tight">{match.away_team}</span>
+            <span className="font-semibold text-sm text-white leading-tight">{match.away_team}</span>
           </div>
+
+          {/* Ballon pronostic */}
+          {showBall && (
+            <div className="ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <BallAction href={href!} predicted={!!predicted} />
+            </div>
+          )}
         </div>
 
-        {/* Groupe + action */}
-        <div className="flex items-center justify-center gap-3 mt-2">
-          <span className="text-[11px] text-gray-400">{match.stage}</span>
-          {leagueId && (
+        {/* Groupe + statut texte */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <span className="text-[11px] text-gray-500">{match.stage}</span>
+          {leagueId && (finished || locked) && (
             <>
-              <span className="text-gray-300 text-[10px]">·</span>
+              <span className="text-white/10 text-[10px]">·</span>
               {finished ? (
                 <span className="text-[11px] text-gray-500">Voir les pronostics →</span>
-              ) : locked ? (
-                <span className="text-[11px] text-gray-400">🔒 Verrouillé</span>
-              ) : predicted ? (
-                <span className="text-[11px] font-bold text-[#00A650]">✓ Pronostiqué</span>
               ) : (
-                <span className="text-[11px] font-bold text-[#003DA5]">Pronostiquer →</span>
+                <span className="text-[11px] text-gray-500">🔒 Verrouillé</span>
               )}
             </>
           )}
         </div>
       </div>
-
     </div>
   );
 
