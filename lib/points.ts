@@ -22,8 +22,29 @@ export function getPointsLabel(points: number): string {
   return "✗ Raté";
 }
 
-// Calcul du bonus buteur
-// Retourne 1 si le joueur pronostiqué a marqué, 0 sinon
+// Calcul du bonus buteur (multi-slots)
+// predictedIds : tous les joueurs pronostiqués par l'utilisateur pour ce match
+// actualIds    : tous les buteurs réels du match (peut avoir doublons si hat-trick)
+// Règles :
+//   - Tous les buteurs réels prédits exactement (même multiset) → 3 pts bonus
+//   - Au moins 1 buteur prédit se trouve parmi les réels        → 1 pt bonus
+//   - Aucun match                                               → 0
+export function calculateScorerBonusMulti(
+  predictedIds: string[],
+  actualIds: string[]
+): number {
+  if (!predictedIds.length || !actualIds.length) return 0;
+
+  const actualSet = [...actualIds].sort().join(",");
+  const predSet   = [...predictedIds].sort().join(",");
+
+  if (predSet === actualSet) return 3;
+
+  const hasOne = predictedIds.some((id) => actualIds.includes(id));
+  return hasOne ? 1 : 0;
+}
+
+// Compat ancienne API (1 joueur unique)
 export function calculateScorerBonus(
   predictedPlayerId: string,
   actualScorerIds: string[]
