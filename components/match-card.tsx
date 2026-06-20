@@ -99,7 +99,7 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
           )}
         </div>
 
-        {/* Équipes + score + ballon */}
+        {/* Équipes + score */}
         <div className="flex items-center gap-2">
           {/* Domicile */}
           <div className="flex-1 flex items-center justify-end gap-2">
@@ -123,17 +123,10 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
             <Flag team={match.away_team} size="md" />
             <span className="font-semibold text-sm text-white leading-tight">{match.away_team}</span>
           </div>
-
-          {/* Ballon pronostic */}
-          {showBall && (
-            <div className="ml-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <BallAction href={href!} predicted={!!predicted} />
-            </div>
-          )}
         </div>
 
-        {/* Groupe + statut texte */}
-        <div className="flex items-center justify-center gap-2 mt-2">
+        {/* Groupe + ballon centré */}
+        <div className="flex items-center justify-center gap-3 mt-3">
           <span className="text-[11px] text-gray-500">{match.stage}</span>
           {leagueId && (finished || locked) && (
             <>
@@ -143,6 +136,14 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
               ) : (
                 <span className="text-[11px] text-gray-500">🔒 Verrouillé</span>
               )}
+            </>
+          )}
+          {showBall && (
+            <>
+              <span className="text-white/10 text-[10px]">·</span>
+              <div onClick={(e) => e.stopPropagation()}>
+                <BallAction href={href!} predicted={!!predicted} />
+              </div>
             </>
           )}
         </div>
