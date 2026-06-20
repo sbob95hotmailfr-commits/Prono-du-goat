@@ -70,7 +70,8 @@ export function ScorerForm({
   const homePlayers = players.filter((p) => p.team_name === homeTeam);
   const awayPlayers = players.filter((p) => p.team_name === awayTeam);
 
-  if (players.length === 0) return null;
+  // Pas de buteurs possibles si les deux équipes ont 0 but prédit
+  if (players.length === 0 || (homeGoals === 0 && awayGoals === 0)) return null;
 
   // Vue verrouillée
   if (locked) {
@@ -108,15 +109,8 @@ export function ScorerForm({
 
     const supabase = createClient();
 
-    // Supprimer tous les scorers existants pour cette prédiction
-    await supabase
-      .from("scorer_predictions")
-      .delete()
-      .eq("prediction_id", predictionId);
-
-    // Construire les nouvelles entrées (uniquement les slots remplis)
+    // Construire toutes les entrées (slots remplis uniquement)
     const entries: { prediction_id: string; player_id: string; slot: number; team: string }[] = [];
-
     homeSlots.forEach((playerId, i) => {
       if (playerId) entries.push({ prediction_id: predictionId, player_id: playerId, slot: i + 1, team: homeTeam });
     });
@@ -124,16 +118,19 @@ export function ScorerForm({
       if (playerId) entries.push({ prediction_id: predictionId, player_id: playerId, slot: i + 1, team: awayTeam });
     });
 
-    if (entries.length > 0) {
-      const { error: insertError } = await supabase
-        .from("scorer_predictions")
-        .insert(entries);
+    // Upsert : met à jour si (prediction_id, slot, team) existe déjà
+    // D'abord vider les slots qui ne sont plus utilisés via l'API serveur
+    const res = await fetch("/api/scorer/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ predictionId, entries }),
+    });
 
-      if (insertError) {
-        setError("Impossible d'enregistrer. " + insertError.message);
-        setLoading(false);
-        return;
-      }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Impossible d'enregistrer les buteurs.");
+      setLoading(false);
+      return;
     }
 
     setSuccess(true);
@@ -194,7 +191,7 @@ export function ScorerForm({
     <div className="rounded-2xl p-5" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
       <div className="mb-4">
         <h3 className="font-bold text-white text-sm">⚽ Pronostic Buteurs</h3>
-        <p className="text-xs text-gray-500 mt-0.5">+1 point bonus par buteur qui marque réellement</p>
+        <p className="text-xs text-gray-500 mt-0.5">+3 pts si tous les buteurs trouvés · +1 pt si au moins un</p>
       </div>
 
       {success && (
