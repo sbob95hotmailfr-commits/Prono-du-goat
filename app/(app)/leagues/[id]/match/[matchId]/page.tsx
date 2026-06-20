@@ -45,15 +45,14 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .order("team_name").order("name") as any;
   const players = (playersRaw ?? []) as any[];
 
-  // Charger le pronostic buteur existant de l'utilisateur (si prediction existe)
-  let currentScorerPrediction: any = null;
+  // Charger les pronostics buteur existants (multi-slots)
+  let currentScorers: any[] = [];
   if (prediction?.id) {
     const { data: sp } = await adminSupabaseGlobal
       .from("scorer_predictions")
-      .select("player_id")
-      .eq("prediction_id", prediction.id)
-      .single() as any;
-    currentScorerPrediction = sp;
+      .select("player_id, slot, team")
+      .eq("prediction_id", prediction.id) as any;
+    currentScorers = sp ?? [];
   }
 
   // Charger les pronostics de tous les membres une fois le match verrouillé
@@ -199,7 +198,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
           <ScorerForm
             predictionId={prediction.id}
             players={players}
-            currentPlayerId={currentScorerPrediction?.player_id ?? null}
+            homeTeam={m.home_team}
+            awayTeam={m.away_team}
+            homeGoals={prediction.home_score_pred ?? 0}
+            awayGoals={prediction.away_score_pred ?? 0}
+            currentScorers={currentScorers}
             locked={locked ?? false}
           />
         )}

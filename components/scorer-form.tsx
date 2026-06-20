@@ -10,140 +10,221 @@ interface Player {
   name: string;
   team_name: string;
   position: string | null;
-  photo_url: string | null;
+}
+
+interface ScorerEntry {
+  player_id: string;
+  slot: number;
+  team: string;
 }
 
 interface ScorerFormProps {
   predictionId: string;
   players: Player[];
-  currentPlayerId: string | null;
+  homeTeam: string;
+  awayTeam: string;
+  homeGoals: number;
+  awayGoals: number;
+  currentScorers: ScorerEntry[];
   locked: boolean;
 }
 
-export function ScorerForm({ predictionId, players, currentPlayerId, locked }: ScorerFormProps) {
+function buildInitialSlots(
+  team: string,
+  goals: number,
+  current: ScorerEntry[]
+): string[] {
+  const slots = Array(Math.max(1, goals)).fill("");
+  current
+    .filter((s) => s.team === team)
+    .forEach((s) => {
+      const idx = s.slot - 1;
+      if (idx >= 0 && idx < slots.length) slots[idx] = s.player_id;
+    });
+  return slots;
+}
+
+export function ScorerForm({
+  predictionId,
+  players,
+  homeTeam,
+  awayTeam,
+  homeGoals,
+  awayGoals,
+  currentScorers,
+  locked,
+}: ScorerFormProps) {
   const router = useRouter();
-  const [selectedId, setSelectedId] = useState<string>(currentPlayerId ?? "");
+
+  const [homeSlots, setHomeSlots] = useState<string[]>(() =>
+    buildInitialSlots(homeTeam, homeGoals, currentScorers)
+  );
+  const [awaySlots, setAwaySlots] = useState<string[]>(() =>
+    buildInitialSlots(awayTeam, awayGoals, currentScorers)
+  );
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const homePlayers = players.filter((p) => p.team_name === homeTeam);
+  const awayPlayers = players.filter((p) => p.team_name === awayTeam);
+
   if (players.length === 0) return null;
+
+  // Vue verrouillée
+  if (locked) {
+    const allScorers = currentScorers.filter((s) => s.player_id);
+    if (!allScorers.length) {
+      return (
+        <div className="rounded-2xl p-5 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <p className="text-gray-500 text-sm">⚽ Pas de buteur pronostiqué pour ce match.</p>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-2xl p-5" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <p className="text-xs text-gray-500 uppercase tracking-wide mb-3">Buteurs pronostiqués</p>
+        <div className="space-y-2">
+          {allScorers.map((s, i) => {
+            const player = players.find((p) => p.id === s.player_id);
+            return (
+              <div key={i} className="flex items-center justify-between py-1.5 px-3 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }}>
+                <span className="text-white text-sm font-semibold">⚽ {player?.name ?? "?"}</span>
+                <span className="text-gray-500 text-xs">{s.team}</span>
+              </div>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-gray-600 mt-3 text-center">🔒 Bonus calculé après le match</p>
+      </div>
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedId) return;
     setError(null);
     setLoading(true);
 
     const supabase = createClient();
 
-    if (currentPlayerId) {
-      // Mise à jour du pronostic buteur existant
-      const { error: updateError } = await supabase
-        .from("scorer_predictions")
-        .update({ player_id: selectedId })
-        .eq("prediction_id", predictionId);
+    // Supprimer tous les scorers existants pour cette prédiction
+    await supabase
+      .from("scorer_predictions")
+      .delete()
+      .eq("prediction_id", predictionId);
 
-      if (updateError) {
-        setError("Impossible de mettre à jour le buteur pronostiqué.");
-        setLoading(false);
-        return;
-      }
-    } else {
-      // Nouveau pronostic buteur
+    // Construire les nouvelles entrées (uniquement les slots remplis)
+    const entries: { prediction_id: string; player_id: string; slot: number; team: string }[] = [];
+
+    homeSlots.forEach((playerId, i) => {
+      if (playerId) entries.push({ prediction_id: predictionId, player_id: playerId, slot: i + 1, team: homeTeam });
+    });
+    awaySlots.forEach((playerId, i) => {
+      if (playerId) entries.push({ prediction_id: predictionId, player_id: playerId, slot: i + 1, team: awayTeam });
+    });
+
+    if (entries.length > 0) {
       const { error: insertError } = await supabase
         .from("scorer_predictions")
-        .insert({ prediction_id: predictionId, player_id: selectedId });
+        .insert(entries);
 
       if (insertError) {
-        setError("Impossible d'enregistrer. Le match a peut-être commencé.");
+        setError("Impossible d'enregistrer. " + insertError.message);
         setLoading(false);
         return;
       }
     }
 
     setSuccess(true);
-    setTimeout(() => router.refresh(), 1000);
     setLoading(false);
+    setTimeout(() => { setSuccess(false); router.refresh(); }, 1500);
   }
 
-  // Grouper les joueurs par équipe pour l'affichage dans le select
-  const homeTeam = players[0]?.team_name ?? "";
-  const awayTeam = players.find((p) => p.team_name !== homeTeam)?.team_name ?? "";
+  function renderTeamSlots(
+    team: string,
+    goals: number,
+    slots: string[],
+    setSlots: (s: string[]) => void,
+    teamPlayers: Player[]
+  ) {
+    if (goals === 0) return null;
 
-  const byTeam: Record<string, Player[]> = {};
-  for (const p of players) {
-    if (!byTeam[p.team_name]) byTeam[p.team_name] = [];
-    byTeam[p.team_name].push(p);
-  }
-
-  if (locked && !currentPlayerId) {
     return (
-      <div className="bg-white rounded-2xl shadow p-5 text-center">
-        <p className="text-gray-400 text-sm">⚽ Pas de buteur pronostiqué pour ce match.</p>
+      <div className="mb-5">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-white font-bold text-sm">{team}</span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(245,166,35,0.15)", color: "#F5A623" }}>
+            {goals} but{goals > 1 ? "s" : ""}
+          </span>
+          <span className="text-gray-600 text-xs">→ {goals} buteur{goals > 1 ? "s" : ""} possible{goals > 1 ? "s" : ""}</span>
+        </div>
+
+        <div className="space-y-2">
+          {slots.map((val, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-gray-600 text-xs w-4 shrink-0">#{i + 1}</span>
+              <select
+                value={val}
+                onChange={(e) => {
+                  const next = [...slots];
+                  next[i] = e.target.value;
+                  setSlots(next);
+                }}
+                className="flex-1 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+                style={{ background: "#0D1B2E", border: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <option value="">— Optionnel —</option>
+                {teamPlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}{p.position ? ` · ${p.position}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
-  if (locked) {
-    const player = players.find((p) => p.id === currentPlayerId);
-    return (
-      <div className="bg-white rounded-2xl shadow p-5 text-center">
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">Buteur pronostiqué</p>
-        <p className="font-bold text-[#0D1B2E] text-lg">⚽ {player?.name ?? "Inconnu"}</p>
-        <p className="text-xs text-gray-400">{player?.team_name}</p>
-        <p className="text-[10px] text-gray-300 mt-2">🔒 Bonus calculé après le match</p>
-      </div>
-    );
-  }
+  const hasAnySelection = homeSlots.some(Boolean) || awaySlots.some(Boolean);
 
   return (
-    <div className="bg-white rounded-2xl shadow p-5">
-      <h3 className="font-bold text-[#0D1B2E] text-sm mb-1">⚽ Pronostic Buteur</h3>
-      <p className="text-xs text-gray-400 mb-4">+1 point bonus si ton buteur marque</p>
+    <div className="rounded-2xl p-5" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
+      <div className="mb-4">
+        <h3 className="font-bold text-white text-sm">⚽ Pronostic Buteurs</h3>
+        <p className="text-xs text-gray-500 mt-0.5">+1 point bonus par buteur qui marque réellement</p>
+      </div>
 
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3 text-center">
-          <p className="text-[#00A650] font-bold text-sm">✓ Buteur enregistré !</p>
+        <div className="rounded-lg p-3 mb-3 text-center" style={{ background: "rgba(0,166,80,0.1)", border: "1px solid rgba(0,166,80,0.25)" }}>
+          <p className="font-bold text-sm" style={{ color: "#00A650" }}>✓ Buteurs enregistrés !</p>
         </div>
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-          <p className="text-[#E8192C] text-sm">{error}</p>
+        <div className="rounded-lg p-3 mb-3" style={{ background: "rgba(232,25,44,0.1)", border: "1px solid rgba(232,25,44,0.25)" }}>
+          <p className="text-sm" style={{ color: "#E8192C" }}>{error}</p>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-[#1A1A1A]
-                     focus:outline-none focus:ring-2 focus:ring-[#003DA5] focus:border-transparent"
-          required
-        >
-          <option value="">— Choisir un buteur —</option>
-          {Object.entries(byTeam).map(([team, teamPlayers]) => (
-            <optgroup key={team} label={team}>
-              {teamPlayers.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}{p.position ? ` (${p.position})` : ""}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+      <form onSubmit={handleSubmit} className="space-y-1">
+        {renderTeamSlots(homeTeam, homeGoals, homeSlots, setHomeSlots, homePlayers)}
+
+        {homeGoals > 0 && awayGoals > 0 && (
+          <div className="my-3" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+        )}
+
+        {renderTeamSlots(awayTeam, awayGoals, awaySlots, setAwaySlots, awayPlayers)}
 
         <button
           type="submit"
-          disabled={loading || !selectedId}
-          className="flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700
-                     disabled:opacity-50 disabled:scale-100
-                     text-white font-bold px-4 py-2.5 rounded-lg transition-all
-                     hover:scale-105 active:scale-95 text-sm"
+          disabled={loading}
+          className="w-full font-bold py-2.5 rounded-lg text-sm transition-all disabled:opacity-50 mt-2"
+          style={{ background: "rgba(245,166,35,0.15)", color: "#F5A623", border: "1px solid rgba(245,166,35,0.25)" }}
         >
-          <span>⚽</span>
-          <span>{loading ? "Enregistrement…" : currentPlayerId ? "Modifier mon buteur" : "Valider mon buteur"}</span>
+          {loading ? "Enregistrement…" : hasAnySelection ? "✓ Valider mes buteurs" : "Passer (aucun buteur)"}
         </button>
       </form>
     </div>
