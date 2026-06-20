@@ -102,7 +102,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             <div className="flex items-center justify-center gap-4">
               <div className="flex-1 text-center">
                 <div className="flex justify-center mb-3">
-                  <FlagImage team={m.home_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
+                  <FlagImage team={m.home_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover border border-white/10" />
                 </div>
                 <p className="font-bold text-white text-sm">{m.home_team}</p>
               </div>
@@ -126,7 +126,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
 
               <div className="flex-1 text-center">
                 <div className="flex justify-center mb-3">
-                  <FlagImage team={m.away_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover" style={{ border: "1px solid rgba(255,255,255,0.1)" }} />
+                  <FlagImage team={m.away_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover border border-white/10" />
                 </div>
                 <p className="font-bold text-white text-sm">{m.away_team}</p>
               </div>
