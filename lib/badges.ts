@@ -54,13 +54,16 @@ const BADGE_RULES: Array<{
       if (!userPredIds?.length) return false;
 
       const predIds = userPredIds.map((p) => p.id);
-      const { count } = await supabase
+
+      // Compte les MATCHS distincts où l'utilisateur a trouvé au moins 1 buteur (bonus 1 ou 3)
+      const { data: bonusPreds } = await supabase
         .from("scorer_predictions")
-        .select("id", { count: "exact", head: true })
-        .eq("bonus_earned", 1)
+        .select("prediction_id")
+        .gt("bonus_earned", 0)
         .in("prediction_id", predIds);
 
-      return (count ?? 0) >= 5;
+      const distinctMatchCount = new Set(bonusPreds?.map((p) => p.prediction_id) ?? []).size;
+      return distinctMatchCount >= 5;
     },
   },
 ];

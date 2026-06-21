@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   // Récupère tous les prediction_id liés à ce match
   const { data: userPreds } = await adminSupabase
     .from("predictions")
-    .select("id, user_id, league_id")
+    .select("id, user_id, league_id, points_earned")
     .eq("match_id", matchId);
 
   if (!userPreds?.length) {
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   const predIds = userPreds.map((p) => p.id);
-  const predMeta = Object.fromEntries(userPreds.map((p) => [p.id, { user_id: p.user_id, league_id: p.league_id }]));
+  const predMeta = Object.fromEntries(userPreds.map((p) => [p.id, { user_id: p.user_id, league_id: p.league_id, score_points: p.points_earned ?? 0 }]));
 
   // Récupère TOUS les pronostics buteur pour ce match (multi-slots)
   const { data: scorerPreds } = await adminSupabase
@@ -69,8 +69,12 @@ export async function POST(req: NextRequest) {
       .update({ bonus_earned: bonus })
       .eq("prediction_id", predId);
 
-    // Vérifier les badges
+    // Ajoute le bonus buteur aux points du pronostic (score + buteurs)
     const meta = predMeta[predId];
+    await adminSupabase
+      .from("predictions")
+      .update({ points_earned: (meta?.score_points ?? 0) + bonus })
+      .eq("id", predId);
     if (meta?.user_id && meta?.league_id) {
       await checkAndAwardBadges(meta.user_id, meta.league_id);
     }

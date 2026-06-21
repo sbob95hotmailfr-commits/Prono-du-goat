@@ -46,17 +46,33 @@ export async function POST() {
 
     if (!predictions?.length) continue;
 
+    // Récupère les bonus buteur existants pour ces prédictions (toutes les lignes ont le même bonus_earned)
+    const predIdList = predictions.map((p) => p.id);
+    const { data: allScorerBonuses } = await adminSupabase
+      .from("scorer_predictions")
+      .select("prediction_id, bonus_earned")
+      .in("prediction_id", predIdList);
+
+    // Prend le bonus de la première ligne trouvée par prédiction (toutes ont la même valeur)
+    const bonusMap: Record<string, number> = {};
+    for (const sb of allScorerBonuses ?? []) {
+      if (!(sb.prediction_id in bonusMap)) {
+        bonusMap[sb.prediction_id] = sb.bonus_earned ?? 0;
+      }
+    }
+
     const results = await Promise.allSettled(
       predictions.map((pred) => {
-        const points = calculatePoints(
+        const scorePoints = calculatePoints(
           pred.home_score_pred,
           pred.away_score_pred,
           match.home_score,
           match.away_score
         );
+        const scorerBonus = bonusMap[pred.id] ?? 0;
         return adminSupabase
           .from("predictions")
-          .update({ points_earned: points, is_locked: true })
+          .update({ points_earned: scorePoints + scorerBonus, is_locked: true })
           .eq("id", pred.id);
       })
     );
