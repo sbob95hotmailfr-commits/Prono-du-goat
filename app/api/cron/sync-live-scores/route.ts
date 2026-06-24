@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
   const supabase = createAdminClient();
 
   // Matchs non terminés depuis moins de 7 jours (fenêtre élargie)
-  const cutoff = new Date(Date.now() - 95 * 60 * 1000).toISOString();
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
   const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   // Force les matchs "live" depuis plus de 3h à "finished" (match bloqué)
@@ -117,29 +117,43 @@ export async function GET(req: NextRequest) {
     } catch { continue; }
 
     const done = fixtures.filter((f: any) => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short));
+    const inProgress = fixtures.filter((f: any) => ["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE"].includes(f.fixture?.status?.short));
 
     for (const m of matches) {
       const fix = done.find((f: any) =>
         teamsMatch(m.home_team, f.teams?.home?.name ?? "") &&
         teamsMatch(m.away_team, f.teams?.away?.name ?? "")
       );
-      if (!fix) continue;
+      if (fix) {
+        const hs = fix.goals?.home ?? 0, as_ = fix.goals?.away ?? 0;
+        const { error } = await supabase.from("matches")
+          .update({ home_score: hs, away_score: as_, status: "finished" }).eq("id", m.id);
+        if (error) continue;
 
-      const hs = fix.goals?.home ?? 0, as_ = fix.goals?.away ?? 0;
-      const { error } = await supabase.from("matches")
-        .update({ home_score: hs, away_score: as_, status: "finished" }).eq("id", m.id);
-      if (error) continue;
+        const { data: preds } = await supabase.from("predictions")
+          .select("id, home_score_pred, away_score_pred").eq("match_id", m.id);
 
-      const { data: preds } = await supabase.from("predictions")
-        .select("id, home_score_pred, away_score_pred").eq("match_id", m.id);
-
-      if (preds?.length) {
-        await Promise.all(preds.map((p: any) => {
-          const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
-          return supabase.from("predictions").update({ points_earned: pts, is_locked: true }).eq("id", p.id);
-        }));
+        if (preds?.length) {
+          await Promise.all(preds.map((p: any) => {
+            const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
+            return supabase.from("predictions").update({ points_earned: pts, is_locked: true }).eq("id", p.id);
+          }));
+        }
+        updated++;
+        continue;
       }
-      updated++;
+
+      const liveFix = inProgress.find((f: any) =>
+        teamsMatch(m.home_team, f.teams?.home?.name ?? "") &&
+        teamsMatch(m.away_team, f.teams?.away?.name ?? "")
+      );
+      if (liveFix) {
+        const hs = liveFix.goals?.home ?? 0, as_ = liveFix.goals?.away ?? 0;
+        await supabase.from("matches")
+          .update({ home_score: hs, away_score: as_, status: "live" })
+          .eq("id", m.id);
+        updated++;
+      }
     }
   }
 
