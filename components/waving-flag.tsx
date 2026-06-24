@@ -61,27 +61,12 @@ export function WavingFlag({ src, alt, width = 130, height = 88 }: WavingFlagPro
   }, [src, width, height]);
 
   return (
-    <div style={{ display: "flex", alignItems: "stretch" }}>
-      {/* Mât */}
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-        {/* Boule dorée */}
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#d4a017", flexShrink: 0 }} />
-        <div style={{
-          width: 4,
-          height: height + 12,
-          background: "linear-gradient(to right, #d4a017, #8a6510, #d4a017)",
-          borderRadius: 2,
-          flexShrink: 0,
-        }} />
-      </div>
-      {/* Canvas drapeau */}
-      <canvas
-        ref={canvasRef}
-        width={width}
-        height={height}
-        aria-label={alt}
-        style={{ borderRadius: "0 6px 6px 0", display: "block" }}
-      />
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={width}
+      height={height}
+      aria-label={alt}
+      style={{ borderRadius: 6, display: "block" }}
+    />
   );
 }
