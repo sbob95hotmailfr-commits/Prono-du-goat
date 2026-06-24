@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getFlagUrl } from "@/lib/flags";
+import { WavingFlag } from "@/components/waving-flag";
 
 interface Props {
   match: {
@@ -89,7 +90,7 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
           {/* Domicile */}
           <div className="flex-1 flex flex-col items-center gap-3">
             {homeFlagUrl
-              ? <img src={homeFlagUrl} alt={match.home_team} className="flag-wave w-16 h-11 md:w-20 md:h-14 object-cover rounded-lg shadow-lg border border-white/10" style={{ animationDelay: "0s" }} />
+              ? <WavingFlag src={homeFlagUrl} alt={match.home_team} width={130} height={88} />
               : <div className="w-20 h-14 rounded-lg bg-white/10 flex items-center justify-center text-2xl">🏳️</div>
             }
             <span className="font-bold text-sm md:text-base leading-tight">{match.home_team}</span>
@@ -104,7 +105,7 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
           {/* Extérieur */}
           <div className="flex-1 flex flex-col items-center gap-3">
             {awayFlagUrl
-              ? <img src={awayFlagUrl} alt={match.away_team} className="flag-wave w-16 h-11 md:w-20 md:h-14 object-cover rounded-lg shadow-lg border border-white/10" style={{ animationDelay: "0.5s", transformOrigin: "right center" }} />
+              ? <WavingFlag src={awayFlagUrl} alt={match.away_team} width={130} height={88} />
               : <div className="w-20 h-14 rounded-lg bg-white/10 flex items-center justify-center text-2xl">🏳️</div>
             }
             <span className="font-bold text-sm md:text-base leading-tight">{match.away_team}</span>
