@@ -24,7 +24,7 @@ export function HomeMatchPreview({ homeTeam, awayTeam, kickoffAt, stage, homeSco
     return () => clearInterval(t);
   }, [kickoffAt]);
 
-  const live = diff <= 0;
+  const live = isLive !== undefined ? isLive : diff <= 0;
   const h = Math.max(0, Math.floor(diff / 3600000));
   const m = Math.max(0, Math.floor((diff % 3600000) / 60000));
   const s = Math.max(0, Math.floor((diff % 60000) / 1000));
