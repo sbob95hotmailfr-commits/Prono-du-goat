@@ -8,11 +8,14 @@ interface Props {
   awayTeam: string;
   kickoffAt: string;
   stage?: string;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  isLive?: boolean;
 }
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
-export function HomeMatchPreview({ homeTeam, awayTeam, kickoffAt, stage }: Props) {
+export function HomeMatchPreview({ homeTeam, awayTeam, kickoffAt, stage, homeScore, awayScore, isLive }: Props) {
   const kickoff = new Date(kickoffAt);
   const [diff, setDiff] = useState(kickoff.getTime() - Date.now());
 
@@ -57,9 +60,17 @@ export function HomeMatchPreview({ homeTeam, awayTeam, kickoffAt, stage }: Props
           <span className="text-white font-bold text-xs text-center leading-tight">{homeTeam}</span>
         </div>
 
-        {/* Séparateur */}
+        {/* Score ou VS */}
         <div className="flex flex-col items-center gap-1 shrink-0">
-          <span className="font-black text-xl" style={{ color: "#003DA5" }}>VS</span>
+          {isLive && homeScore != null && awayScore != null ? (
+            <div className="flex items-center gap-2">
+              <span className="font-black text-3xl text-white">{homeScore}</span>
+              <span className="font-black text-lg text-white/40">-</span>
+              <span className="font-black text-3xl text-white">{awayScore}</span>
+            </div>
+          ) : (
+            <span className="font-black text-xl" style={{ color: "#003DA5" }}>VS</span>
+          )}
           {stage && <span className="text-[9px] text-gray-500 uppercase tracking-wide">{stage}</span>}
         </div>
 

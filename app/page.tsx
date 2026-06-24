@@ -7,13 +7,24 @@ export const revalidate = 60;
 
 export default async function HomePage() {
   const supabase = createAdminClient();
-  const { data: nextMatch } = await supabase
+  // Priorité au match en direct, sinon le prochain à venir
+  const { data: liveMatch } = await supabase
     .from("matches")
-    .select("kickoff_at, home_team, away_team, stage")
+    .select("kickoff_at, home_team, away_team, stage, home_score, away_score, status")
+    .eq("status", "live")
+    .order("kickoff_at", { ascending: true })
+    .limit(1)
+    .single() as any;
+
+  const { data: upcomingMatch } = await supabase
+    .from("matches")
+    .select("kickoff_at, home_team, away_team, stage, home_score, away_score, status")
     .eq("status", "upcoming")
     .order("kickoff_at", { ascending: true })
     .limit(1)
     .single() as any;
+
+  const nextMatch = liveMatch ?? upcomingMatch;
 
   return (
     <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4 relative overflow-hidden">
@@ -89,6 +100,9 @@ export default async function HomePage() {
             awayTeam={nextMatch.away_team}
             kickoffAt={nextMatch.kickoff_at}
             stage={nextMatch.stage}
+            homeScore={nextMatch.home_score ?? null}
+            awayScore={nextMatch.away_score ?? null}
+            isLive={nextMatch.status === "live"}
           />
         )}
       </main>
