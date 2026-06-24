@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+export const revalidate = 60; // revalide les données toutes les 60s
+
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
 import { WcNav } from "@/components/wc-nav";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getFlagUrl } from "@/lib/flags";
@@ -23,10 +24,29 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
   const kickoff = new Date(match.kickoff_at);
   const [diff, setDiff] = useState(kickoff.getTime() - Date.now());
 
+  const router = useRouter();
+
   useEffect(() => {
-    const t = setInterval(() => setDiff(kickoff.getTime() - Date.now()), 1000);
+    const t = setInterval(() => {
+      const newDiff = kickoff.getTime() - Date.now();
+      setDiff(newDiff);
+    }, 1000);
     return () => clearInterval(t);
   }, [match.kickoff_at]);
+
+  // Refresh serveur au coup d'envoi (pour passer au prochain match)
+  useEffect(() => {
+    if (diff > 0 && diff < 2000) {
+      router.refresh();
+    }
+  }, [diff]);
+
+  // Refresh toutes les 60s pendant un match en cours (score live)
+  useEffect(() => {
+    if (diff > 0) return;
+    const t = setInterval(() => router.refresh(), 60_000);
+    return () => clearInterval(t);
+  }, [diff <= 0]);
 
   const locked = diff <= 0;
   const h = Math.max(0, Math.floor(diff / 3600000));
