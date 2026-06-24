@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     .gt("kickoff_at", windowStart)
     .order("kickoff_at");
 
-  if (!pending?.length) return NextResponse.json({ success: true, updated: 0 });
+  if (!pending?.length) return NextResponse.json({ success: true, updated: 0, debug: "no_pending_matches" });
 
   // Grouper par date — max 1 date par run pour économiser le quota
   const byDate: Record<string, typeof pending> = {};
@@ -96,16 +96,19 @@ export async function GET(req: NextRequest) {
   // On ne traite qu'une seule date par appel cron (la plus ancienne en attente)
   const datesToProcess = Object.keys(byDate).sort().slice(0, 1);
   let updated = 0;
+  let debugInfo: any = {};
 
   for (const date of datesToProcess) {
     const matches = byDate[date];
     let fixtures: any[] = [];
+    let r1raw: any = null;
     try {
       const r1 = await fetch(
         `https://v3.football.api-sports.io/fixtures?league=1&season=2026&date=${date}`,
         { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
       );
-      fixtures = (await r1.json())?.response ?? [];
+      r1raw = await r1.json();
+      fixtures = r1raw?.response ?? [];
 
       if (!fixtures.length) {
         const r2 = await fetch(
@@ -115,6 +118,14 @@ export async function GET(req: NextRequest) {
         fixtures = (await r2.json())?.response ?? [];
       }
     } catch { continue; }
+
+    debugInfo = {
+      date,
+      pending_matches: matches.map(m => `${m.home_team} vs ${m.away_team}`),
+      api_errors: r1raw?.errors,
+      fixtures_total: fixtures.length,
+      fixtures_sample: fixtures.slice(0, 3).map((f: any) => `${f.teams?.home?.name} vs ${f.teams?.away?.name} [${f.fixture?.status?.short}]`),
+    };
 
     const done = fixtures.filter((f: any) => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short));
     const inProgress = fixtures.filter((f: any) => ["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE"].includes(f.fixture?.status?.short));
@@ -157,5 +168,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ success: true, updated });
+  return NextResponse.json({ success: true, updated, debug: debugInfo });
 }
