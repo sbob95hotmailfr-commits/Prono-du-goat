@@ -45,18 +45,14 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
     <div
       className="relative overflow-hidden"
       style={{
-        background: "linear-gradient(135deg, #050D1A 0%, #0D1B2E 50%, #0A1628 100%)",
+        backgroundImage: "url('/hero-bg.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center 30%",
         minHeight: "340px",
       }}
     >
-      {/* Grille terrain */}
-      <div className="absolute inset-0 opacity-[0.04]" style={{
-        backgroundImage: "repeating-linear-gradient(0deg,#fff 0,#fff 1px,transparent 1px,transparent 60px),repeating-linear-gradient(90deg,#fff 0,#fff 1px,transparent 1px,transparent 60px)",
-      }} />
-
-      {/* Halo rouge */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] rounded-full opacity-10"
-        style={{ background: "radial-gradient(ellipse,#E8192C 0%,transparent 70%)" }} />
+      {/* Overlay sombre pour lisibilité du texte */}
+      <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.65) 100%)" }} />
 
       <div className="relative z-10 flex flex-col items-center justify-center px-4 py-10 text-white text-center">
 
