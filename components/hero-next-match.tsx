@@ -74,46 +74,6 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
       {/* Overlay sombre pour lisibilité du texte */}
       <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.4) 50%, rgba(0,0,0,0.65) 100%)" }} />
 
-      {/* Drapeaux gauche */}
-      <div className="absolute left-2 top-0 bottom-0 flex flex-col justify-around py-4 z-10 pointer-events-none">
-        {[
-          { team: "Brazil",    delay: "0s",    top: "8%" },
-          { team: "Argentina", delay: "0.6s",  top: "28%" },
-          { team: "Morocco",   delay: "1.1s",  top: "50%" },
-          { team: "Spain",     delay: "0.3s",  top: "70%" },
-        ].map(({ team, delay }) => (
-          <div key={team} className="flex items-center gap-1 opacity-80">
-            <div className="w-1 h-10 rounded-full" style={{ background: "rgba(255,255,255,0.4)" }} />
-            <img
-              src={getFlagUrl(team, "md") ?? ""}
-              alt={team}
-              className="flag-wave h-7 rounded shadow-lg"
-              style={{ width: 44, objectFit: "cover", animationDelay: delay }}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* Drapeaux droite */}
-      <div className="absolute right-2 top-0 bottom-0 flex flex-col justify-around py-4 z-10 pointer-events-none">
-        {[
-          { team: "France",  delay: "0.4s" },
-          { team: "England", delay: "1s"   },
-          { team: "Germany", delay: "0.7s" },
-          { team: "Japan",   delay: "0.2s" },
-        ].map(({ team, delay }) => (
-          <div key={team} className="flex items-center gap-1 flex-row-reverse opacity-80">
-            <div className="w-1 h-10 rounded-full" style={{ background: "rgba(255,255,255,0.4)" }} />
-            <img
-              src={getFlagUrl(team, "md") ?? ""}
-              alt={team}
-              className="flag-wave h-7 rounded shadow-lg"
-              style={{ width: 44, objectFit: "cover", animationDelay: delay, transformOrigin: "right center" }}
-            />
-          </div>
-        ))}
-      </div>
-
       <div className="relative z-10 flex flex-col items-center justify-center px-4 py-10 text-white text-center">
 
         {/* Badge */}
@@ -129,7 +89,7 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
           {/* Domicile */}
           <div className="flex-1 flex flex-col items-center gap-3">
             {homeFlagUrl
-              ? <img src={homeFlagUrl} alt={match.home_team} className="w-16 h-11 md:w-20 md:h-14 object-cover rounded-lg shadow-lg border border-white/10" />
+              ? <img src={homeFlagUrl} alt={match.home_team} className="flag-wave w-16 h-11 md:w-20 md:h-14 object-cover rounded-lg shadow-lg border border-white/10" style={{ animationDelay: "0s" }} />
               : <div className="w-20 h-14 rounded-lg bg-white/10 flex items-center justify-center text-2xl">🏳️</div>
             }
             <span className="font-bold text-sm md:text-base leading-tight">{match.home_team}</span>
@@ -144,7 +104,7 @@ export function HeroNextMatch({ match, leagueId, predicted }: Props) {
           {/* Extérieur */}
           <div className="flex-1 flex flex-col items-center gap-3">
             {awayFlagUrl
-              ? <img src={awayFlagUrl} alt={match.away_team} className="w-16 h-11 md:w-20 md:h-14 object-cover rounded-lg shadow-lg border border-white/10" />
+              ? <img src={awayFlagUrl} alt={match.away_team} className="flag-wave w-16 h-11 md:w-20 md:h-14 object-cover rounded-lg shadow-lg border border-white/10" style={{ animationDelay: "0.5s", transformOrigin: "right center" }} />
               : <div className="w-20 h-14 rounded-lg bg-white/10 flex items-center justify-center text-2xl">🏳️</div>
             }
             <span className="font-bold text-sm md:text-base leading-tight">{match.away_team}</span>
