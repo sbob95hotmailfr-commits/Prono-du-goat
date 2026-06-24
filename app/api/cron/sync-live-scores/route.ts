@@ -65,9 +65,16 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Seulement les matchs des 2 derniers jours (conserve le quota API)
+  // Matchs non terminés depuis moins de 7 jours (fenêtre élargie)
   const cutoff = new Date(Date.now() - 95 * 60 * 1000).toISOString();
-  const windowStart = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Force les matchs "live" depuis plus de 3h à "finished" (match bloqué)
+  await supabase.from("matches")
+    .update({ status: "finished" })
+    .eq("status", "live")
+    .lt("kickoff_at", new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString());
+
   const { data: pending } = await supabase
     .from("matches")
     .select("id, home_team, away_team, kickoff_at")
