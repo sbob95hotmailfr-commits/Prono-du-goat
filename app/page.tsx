@@ -1,31 +1,9 @@
 import Link from "next/link";
 import { Trophy } from "@/components/trophy";
-import { HomeMatchPreview } from "@/components/home-match-preview";
-import { createAdminClient } from "@/lib/supabase/server";
 
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const supabase = createAdminClient();
-  // Priorité au match en direct, sinon le prochain à venir
-  const { data: liveMatch } = await supabase
-    .from("matches")
-    .select("kickoff_at, home_team, away_team, stage, home_score, away_score, status")
-    .eq("status", "live")
-    .order("kickoff_at", { ascending: true })
-    .limit(1)
-    .single() as any;
-
-  const { data: upcomingMatch } = await supabase
-    .from("matches")
-    .select("kickoff_at, home_team, away_team, stage, home_score, away_score, status")
-    .eq("status", "upcoming")
-    .order("kickoff_at", { ascending: true })
-    .limit(1)
-    .single() as any;
-
-  const nextMatch = liveMatch ?? upcomingMatch;
-
   return (
     <div className="min-h-screen bg-dark flex flex-col items-center justify-center px-4 relative overflow-hidden">
       {/* Fond texturé terrain de foot */}
@@ -92,19 +70,6 @@ export default async function HomePage() {
         <p className="text-gray-500 text-sm mt-8">
           Rejoins ta ligue privée · Pronostique tous les matchs · Grimpe au classement
         </p>
-
-        {/* Prochain match + compte à rebours */}
-        {nextMatch && (
-          <HomeMatchPreview
-            homeTeam={nextMatch.home_team}
-            awayTeam={nextMatch.away_team}
-            kickoffAt={nextMatch.kickoff_at}
-            stage={nextMatch.stage}
-            homeScore={nextMatch.home_score ?? null}
-            awayScore={nextMatch.away_score ?? null}
-            isLive={nextMatch.status === "live"}
-          />
-        )}
       </main>
 
     </div>
