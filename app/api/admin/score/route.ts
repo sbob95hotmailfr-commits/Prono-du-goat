@@ -56,18 +56,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, updated: 0, message: "Score enregistré — aucun pronostic à calculer" });
   }
 
+  // Récupère les bonus buteur existants pour ne pas les écraser
+  const predIds = predictions.map((p) => p.id);
+  const { data: scorerBonuses } = await adminSupabase
+    .from("scorer_predictions")
+    .select("prediction_id, bonus_earned")
+    .in("prediction_id", predIds);
+
+  const bonusMap: Record<string, number> = {};
+  for (const sb of scorerBonuses ?? []) {
+    if (!(sb.prediction_id in bonusMap)) bonusMap[sb.prediction_id] = sb.bonus_earned ?? 0;
+  }
+
   // Calculer et mettre à jour les points pour chaque pronostic
   const results = await Promise.allSettled(
     predictions.map((pred) => {
-      const points = calculatePoints(
+      const scorePoints = calculatePoints(
         pred.home_score_pred,
         pred.away_score_pred,
         homeScore,
         awayScore
       );
+      const scorerBonus = bonusMap[pred.id] ?? 0;
       return adminSupabase
         .from("predictions")
-        .update({ points_earned: points, is_locked: true })
+        .update({ points_earned: scorePoints + scorerBonus, is_locked: true })
         .eq("id", pred.id);
     })
   );

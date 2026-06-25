@@ -31,10 +31,17 @@ export async function POST(req: NextRequest) {
     await adminSupabase.from("match_scorers").insert({ match_id: matchId, player_id: playerId });
   }
 
+  // Récupère le score réel du match pour recalculer les points bruts
+  const { data: matchData } = await adminSupabase
+    .from("matches")
+    .select("home_score, away_score")
+    .eq("id", matchId)
+    .single();
+
   // Récupère tous les prediction_id liés à ce match
   const { data: userPreds } = await adminSupabase
     .from("predictions")
-    .select("id, user_id, league_id, points_earned")
+    .select("id, user_id, league_id, home_score_pred, away_score_pred")
     .eq("match_id", matchId);
 
   if (!userPreds?.length) {
@@ -42,7 +49,13 @@ export async function POST(req: NextRequest) {
   }
 
   const predIds = userPreds.map((p) => p.id);
-  const predMeta = Object.fromEntries(userPreds.map((p) => [p.id, { user_id: p.user_id, league_id: p.league_id, score_points: p.points_earned ?? 0 }]));
+  // Calcule les points de score bruts depuis les prédictions + score réel (évite l'accumulation de bonus)
+  const predMeta = Object.fromEntries(userPreds.map((p) => {
+    const scorePoints = (matchData?.home_score != null && matchData?.away_score != null)
+      ? calculatePoints(p.home_score_pred, p.away_score_pred, matchData.home_score, matchData.away_score)
+      : 0;
+    return [p.id, { user_id: p.user_id, league_id: p.league_id, score_points: scorePoints }];
+  }));
 
   // Récupère TOUS les pronostics buteur pour ce match (multi-slots)
   const { data: scorerPreds } = await adminSupabase
