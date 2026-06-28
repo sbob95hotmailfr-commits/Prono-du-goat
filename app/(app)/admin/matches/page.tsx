@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { AdminScoreForm } from "@/components/admin-score-form";
+import { AdminTeamsForm } from "@/components/admin-teams-form";
 import { AdminRecalculateBtn } from "@/components/admin-recalculate-btn";
 import { AdminSyncBtn } from "@/components/admin-sync-btn";
 import type { Match } from "@/types/database";
@@ -63,6 +64,9 @@ export default async function AdminMatchesPage() {
                     {match.status}
                   </span>
                 </div>
+                {(match.home_team?.startsWith("Qualifié") || match.away_team?.startsWith("Qualifié")) && (
+                  <AdminTeamsForm matchId={match.id} homeTeam={match.home_team} awayTeam={match.away_team} />
+                )}
                 <AdminScoreForm matchId={match.id} homeFlag={match.home_flag ?? ""} awayFlag={match.away_flag ?? ""} />
               </div>
             ))}
