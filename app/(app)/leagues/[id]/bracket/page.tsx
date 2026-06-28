@@ -130,10 +130,10 @@ export default async function BracketPage({ params }: { params: Promise<{ id: st
 
   // Dates officielles phases (UTC)
   const officialDates: Record<string, string> = {
-    "Seizièmes de finale": "Du 29 juin au 3 juillet 2026",
-    "Huitièmes de finale": "Du 4 au 8 juillet 2026",
-    "Quarts de finale": "Du 9 au 11 juillet 2026",
-    "Demi-finales": "15 & 16 juillet 2026",
+    "Seizièmes de finale": "Du 28 juin au 4 juillet 2026",
+    "Huitièmes de finale": "Du 4 au 7 juillet 2026",
+    "Quarts de finale": "Du 9 au 12 juillet 2026",
+    "Demi-finales": "14 & 15 juillet 2026",
     "Finale": "19 juillet 2026 — MetLife Stadium",
   };
 

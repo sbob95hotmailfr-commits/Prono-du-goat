@@ -3,35 +3,70 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints } from "@/lib/points";
 
-// Traduction noms FR → anglais API Football
+// Traduction noms FR → anglais (football-data.org utilise des noms anglais)
 const FR_TO_EN: Record<string, string> = {
-  "etats unis": "united states", "mexique": "mexico",
-  "afrique du sud": "south africa", "coree du sud": "south korea",
-  "tchequie": "czechia", "republique tcheque": "czech republic",
-  "bosnie herzegovine": "bosnia and herzegovina",
-  "ouzbekistan": "uzbekistan", "colombie": "colombia",
-  "suisse": "switzerland", "angleterre": "england", "croatie": "croatia",
-  "nouvelle zelande": "new zealand", "equateur": "ecuador",
-  "perou": "peru", "chili": "chile", "argentine": "argentina",
-  "bresil": "brazil", "algerie": "algeria", "senegal": "senegal",
-  "allemagne": "germany", "arabie saoudite": "saudi arabia",
-  "japon": "japan", "australie": "australia", "espagne": "spain",
-  "maroc": "morocco", "tunisie": "tunisia", "egypte": "egypt",
-  "serbie": "serbia", "georgie": "georgia", "suede": "sweden",
-  "cameroun": "cameroon", "ecosse": "scotland", "italie": "italy",
-  "slovaquie": "slovakia", "pays bas": "netherlands",
-  "pologne": "poland", "autriche": "austria", "belgique": "belgium",
-  "danemark": "denmark", "rd congo": "dr congo",
-  "cote d ivoire": "ivory coast", "cote divoire": "ivory coast",
+  "etats unis": "united states",
+  "mexique": "mexico",
+  "afrique du sud": "south africa",
+  "coree du sud": "south korea",
+  "bosnie herzegovine": "bosnia-herzegovina",
+  "bosnie et herzegovine": "bosnia-herzegovina",
+  "colombie": "colombia",
+  "suisse": "switzerland",
+  "angleterre": "england",
+  "croatie": "croatia",
+  "nouvelle zelande": "new zealand",
+  "equateur": "ecuador",
+  "perou": "peru",
+  "chili": "chile",
+  "argentine": "argentina",
+  "bresil": "brazil",
+  "algerie": "algeria",
+  "senegal": "senegal",
+  "allemagne": "germany",
+  "arabie saoudite": "saudi arabia",
+  "japon": "japan",
+  "australie": "australia",
+  "espagne": "spain",
+  "maroc": "morocco",
+  "tunisie": "tunisia",
+  "egypte": "egypt",
+  "serbie": "serbia",
+  "georgie": "georgia",
+  "suede": "sweden",
+  "norvege": "norway",
+  "cameroun": "cameroon",
+  "ecosse": "scotland",
+  "italie": "italy",
+  "slovaquie": "slovakia",
+  "pays bas": "netherlands",
+  "pologne": "poland",
+  "autriche": "austria",
+  "belgique": "belgium",
+  "danemark": "denmark",
+  "rd congo": "dr congo",
+  "republique democratique du congo": "dr congo",
+  "cote d ivoire": "ivory coast",
+  "cote divoire": "ivory coast",
+  "cap vert": "cape verde",
+  "paraguai": "paraguay",
+  "indonesie": "indonesia",
+  "ouzbekistan": "uzbekistan",
+  "portugal": "portugal",
+  "uruguay": "uruguay",
+  "canada": "canada",
 };
 
-// Noms spécifiques utilisés par API Football
+// Aliases spécifiques football-data.org
 const API_ALIASES: Record<string, string> = {
-  "turkiye": "turkey",
   "usa": "united states",
   "korea republic": "south korea",
-  "republic of ireland": "ireland",
-  "china pr": "china",
+  "republic of korea": "south korea",
+  "ivory coast": "ivory coast",
+  "côte d'ivoire": "ivory coast",
+  "dr congo": "dr congo",
+  "congo dr": "dr congo",
+  "bosnia and herzegovina": "bosnia-herzegovina",
 };
 
 function norm(s: string): string {
@@ -44,11 +79,10 @@ function toEn(fr: string): string { const n = norm(fr); return FR_TO_EN[n] ?? n;
 function normApi(api: string): string { const n = norm(api); return API_ALIASES[n] ?? n; }
 function teamsMatch(db: string, api: string): boolean {
   const dbEn = norm(toEn(db));
-  const apiEn = normApi(api);
+  const apiEn = normApi(norm(api));
   if (dbEn === apiEn) return true;
   if (norm(db) === apiEn) return true;
   if (dbEn.includes(apiEn) || apiEn.includes(dbEn)) return true;
-  // Correspondance par mot significatif (4+ chars)
   const dbWords = dbEn.split(" ").filter(w => w.length >= 4);
   const apiWords = apiEn.split(" ").filter(w => w.length >= 4);
   return dbWords.some(w => apiWords.includes(w));
@@ -65,19 +99,19 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Matchs non terminés depuis moins de 7 jours (fenêtre élargie)
-  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-  const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-  // Force les matchs "live" depuis plus de 3h à "finished" (match bloqué)
+  // Force les matchs "live" depuis plus de 3h à "finished"
   await supabase.from("matches")
     .update({ status: "finished" })
     .eq("status", "live")
     .lt("kickoff_at", new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString());
 
+  // Matchs non terminés dans une fenêtre de 7 jours
+  const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+  const windowStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
   const { data: pending } = await supabase
     .from("matches")
-    .select("id, home_team, away_team, kickoff_at")
+    .select("id, home_team, away_team, kickoff_at, stage")
     .neq("status", "finished")
     .lt("kickoff_at", cutoff)
     .gt("kickoff_at", windowStart)
@@ -85,88 +119,130 @@ export async function GET(req: NextRequest) {
 
   if (!pending?.length) return NextResponse.json({ success: true, updated: 0, debug: "no_pending_matches" });
 
-  // Grouper par date — max 1 date par run pour économiser le quota
-  const byDate: Record<string, typeof pending> = {};
-  for (const m of pending) {
-    const d = m.kickoff_at.slice(0, 10);
-    if (!byDate[d]) byDate[d] = [];
-    byDate[d].push(m);
+  // Récupérer TOUS les matchs WC 2026 depuis football-data.org (1 seul appel API)
+  let allFixtures: any[] = [];
+  let apiError: any = null;
+
+  try {
+    const res = await fetch(
+      "https://api.football-data.org/v4/competitions/WC/matches",
+      {
+        headers: { "X-Auth-Token": API_KEY },
+        cache: "no-store",
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      apiError = data;
+    } else {
+      allFixtures = data.matches ?? [];
+    }
+  } catch (e: any) {
+    apiError = { message: e?.message ?? "fetch_failed" };
   }
 
-  // On ne traite qu'une seule date par appel cron (la plus ancienne en attente)
-  const datesToProcess = Object.keys(byDate).sort().slice(0, 1);
+  if (apiError) {
+    return NextResponse.json({ success: false, updated: 0, debug: { api_error: apiError } });
+  }
+
+  // Statuts football-data.org
+  const FINISHED_STATUSES = ["FINISHED"];
+  const LIVE_STATUSES = ["IN_PLAY", "PAUSED", "HALFTIME"];
+
+  const done = allFixtures.filter((f: any) => FINISHED_STATUSES.includes(f.status));
+  const inProgress = allFixtures.filter((f: any) => LIVE_STATUSES.includes(f.status));
+
   let updated = 0;
-  let debugInfo: any = {};
 
-  for (const date of datesToProcess) {
-    const matches = byDate[date];
-    let fixtures: any[] = [];
-    let r1raw: any = null;
-    try {
-      const r1 = await fetch(
-        `https://v3.football.api-sports.io/fixtures?league=1&season=2026&date=${date}`,
-        { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
-      );
-      r1raw = await r1.json();
-      fixtures = r1raw?.response ?? [];
+  for (const m of pending) {
+    // Chercher dans les matchs terminés
+    const fix = done.find((f: any) =>
+      teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
+      teamsMatch(m.away_team, f.awayTeam?.name ?? "")
+    );
 
-      if (!fixtures.length) {
-        const r2 = await fetch(
-          `https://v3.football.api-sports.io/fixtures?date=${date}`,
-          { headers: { "x-apisports-key": API_KEY }, cache: "no-store" }
-        );
-        fixtures = (await r2.json())?.response ?? [];
+    if (fix) {
+      const hs = fix.score?.fullTime?.home ?? 0;
+      const as_ = fix.score?.fullTime?.away ?? 0;
+
+      await supabase.from("matches")
+        .update({ home_score: hs, away_score: as_, status: "finished" })
+        .eq("id", m.id);
+
+      const { data: preds } = await supabase.from("predictions")
+        .select("id, home_score_pred, away_score_pred")
+        .eq("match_id", m.id);
+
+      if (preds?.length) {
+        await Promise.all(preds.map((p: any) => {
+          const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
+          return supabase.from("predictions")
+            .update({ points_earned: pts, is_locked: true })
+            .eq("id", p.id);
+        }));
       }
-    } catch { continue; }
 
-    debugInfo = {
-      date,
-      pending_matches: matches.map(m => `${m.home_team} vs ${m.away_team}`),
-      api_errors: r1raw?.errors,
-      fixtures_total: fixtures.length,
-      fixtures_sample: fixtures.slice(0, 3).map((f: any) => `${f.teams?.home?.name} vs ${f.teams?.away?.name} [${f.fixture?.status?.short}]`),
-    };
-
-    const done = fixtures.filter((f: any) => ["FT", "AET", "PEN"].includes(f.fixture?.status?.short));
-    const inProgress = fixtures.filter((f: any) => ["1H", "HT", "2H", "ET", "BT", "P", "INT", "LIVE"].includes(f.fixture?.status?.short));
-
-    for (const m of matches) {
-      const fix = done.find((f: any) =>
-        teamsMatch(m.home_team, f.teams?.home?.name ?? "") &&
-        teamsMatch(m.away_team, f.teams?.away?.name ?? "")
-      );
-      if (fix) {
-        const hs = fix.goals?.home ?? 0, as_ = fix.goals?.away ?? 0;
-        const { error } = await supabase.from("matches")
-          .update({ home_score: hs, away_score: as_, status: "finished" }).eq("id", m.id);
-        if (error) continue;
-
-        const { data: preds } = await supabase.from("predictions")
-          .select("id, home_score_pred, away_score_pred").eq("match_id", m.id);
-
-        if (preds?.length) {
-          await Promise.all(preds.map((p: any) => {
-            const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
-            return supabase.from("predictions").update({ points_earned: pts, is_locked: true }).eq("id", p.id);
-          }));
+      // Propagation bracket si match knockout
+      const NEXT_STAGE: Record<string, string> = {
+        "Seizièmes de finale": "Huitièmes de finale",
+        "Huitièmes de finale": "Quarts de finale",
+        "Quarts de finale": "Demi-finales",
+        "Demi-finales": "Finale",
+      };
+      const PLACEHOLDER_PREFIX: Record<string, string> = {
+        "Seizièmes de finale": "HF",
+        "Huitièmes de finale": "HF",
+        "Quarts de finale": "QF",
+        "Demi-finales": "DF",
+      };
+      if (m.stage && NEXT_STAGE[m.stage]) {
+        const nextStage = NEXT_STAGE[m.stage];
+        const prefix = PLACEHOLDER_PREFIX[m.stage];
+        const { data: stageMatches } = await supabase
+          .from("matches").select("id, kickoff_at")
+          .eq("stage", m.stage).order("kickoff_at", { ascending: true });
+        const slot = (stageMatches ?? []).findIndex((sm: any) => sm.id === m.id) + 1;
+        if (slot > 0) {
+          const winner = hs > as_ ? m.home_team : m.away_team;
+          const placeholder = `Vainqueur ${prefix}${slot}`;
+          await supabase.from("matches").update({ home_team: winner })
+            .eq("stage", nextStage).eq("home_team", placeholder);
+          await supabase.from("matches").update({ away_team: winner })
+            .eq("stage", nextStage).eq("away_team", placeholder);
         }
-        updated++;
-        continue;
       }
 
-      const liveFix = inProgress.find((f: any) =>
-        teamsMatch(m.home_team, f.teams?.home?.name ?? "") &&
-        teamsMatch(m.away_team, f.teams?.away?.name ?? "")
-      );
-      if (liveFix) {
-        const hs = liveFix.goals?.home ?? 0, as_ = liveFix.goals?.away ?? 0;
-        await supabase.from("matches")
-          .update({ home_score: hs, away_score: as_, status: "live" })
-          .eq("id", m.id);
-        updated++;
-      }
+      updated++;
+      continue;
+    }
+
+    // Chercher dans les matchs en cours
+    const liveFix = inProgress.find((f: any) =>
+      teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
+      teamsMatch(m.away_team, f.awayTeam?.name ?? "")
+    );
+
+    if (liveFix) {
+      const hs = liveFix.score?.fullTime?.home ?? 0;
+      const as_ = liveFix.score?.fullTime?.away ?? 0;
+      await supabase.from("matches")
+        .update({ home_score: hs, away_score: as_, status: "live" })
+        .eq("id", m.id);
+      updated++;
     }
   }
 
-  return NextResponse.json({ success: true, updated, debug: debugInfo });
+  return NextResponse.json({
+    success: true,
+    updated,
+    debug: {
+      pending_count: pending.length,
+      fixtures_total: allFixtures.length,
+      finished_count: done.length,
+      live_count: inProgress.length,
+      fixtures_sample: allFixtures.slice(0, 3).map((f: any) =>
+        `${f.homeTeam?.name} vs ${f.awayTeam?.name} [${f.status}]`
+      ),
+    },
+  });
 }

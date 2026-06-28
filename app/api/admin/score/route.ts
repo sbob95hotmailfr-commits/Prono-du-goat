@@ -92,5 +92,55 @@ export async function POST(request: Request) {
     }, { status: 207 });
   }
 
+  // Propagation automatique du gagnant dans le tour suivant
+  const NEXT_STAGE: Record<string, string> = {
+    "Seizièmes de finale": "Huitièmes de finale",
+    "Huitièmes de finale": "Quarts de finale",
+    "Quarts de finale": "Demi-finales",
+    "Demi-finales": "Finale",
+  };
+  const PLACEHOLDER_PREFIX: Record<string, string> = {
+    "Seizièmes de finale": "HF",
+    "Huitièmes de finale": "HF",
+    "Quarts de finale": "QF",
+    "Demi-finales": "DF",
+  };
+
+  const { data: matchInfo } = await adminSupabase
+    .from("matches")
+    .select("stage, home_team, away_team")
+    .eq("id", matchId)
+    .single();
+
+  if (matchInfo && NEXT_STAGE[matchInfo.stage]) {
+    const nextStage = NEXT_STAGE[matchInfo.stage];
+    const prefix = PLACEHOLDER_PREFIX[matchInfo.stage];
+
+    const { data: stageMatches } = await adminSupabase
+      .from("matches")
+      .select("id, kickoff_at")
+      .eq("stage", matchInfo.stage)
+      .order("kickoff_at", { ascending: true });
+
+    const slot = (stageMatches ?? []).findIndex((m) => m.id === matchId) + 1;
+
+    if (slot > 0) {
+      const winner = homeScore > awayScore ? matchInfo.home_team : matchInfo.away_team;
+      const placeholder = `Vainqueur ${prefix}${slot}`;
+
+      await adminSupabase
+        .from("matches")
+        .update({ home_team: winner })
+        .eq("stage", nextStage)
+        .eq("home_team", placeholder);
+
+      await adminSupabase
+        .from("matches")
+        .update({ away_team: winner })
+        .eq("stage", nextStage)
+        .eq("away_team", placeholder);
+    }
+  }
+
   return NextResponse.json({ success: true, updated: predictions.length });
 }
