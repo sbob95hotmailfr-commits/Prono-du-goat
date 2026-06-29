@@ -95,5 +95,32 @@ export async function POST(req: NextRequest) {
     bonusUpdated++;
   }
 
+  // Recalculer player_stats depuis match_scorers
+  const { data: allMatchScorers } = await adminSupabase
+    .from("match_scorers")
+    .select("player_id, match_id");
+
+  if (allMatchScorers?.length) {
+    const stats: Record<string, { goals: number; matches: Set<string> }> = {};
+    for (const s of allMatchScorers) {
+      if (!s.player_id) continue;
+      if (!stats[s.player_id]) stats[s.player_id] = { goals: 0, matches: new Set() };
+      stats[s.player_id].goals++;
+      stats[s.player_id].matches.add(s.match_id);
+    }
+
+    await adminSupabase.from("player_stats").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+    const rows = Object.entries(stats).map(([playerId, s]) => ({
+      player_id: playerId,
+      goals: s.goals,
+      matches_played: s.matches.size,
+    }));
+
+    if (rows.length) {
+      await adminSupabase.from("player_stats").insert(rows);
+    }
+  }
+
   return NextResponse.json({ success: true, scorersAdded: scorerIds.length, bonusUpdated });
 }
