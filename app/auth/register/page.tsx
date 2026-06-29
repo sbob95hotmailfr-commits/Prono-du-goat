@@ -35,9 +35,15 @@ export default function RegisterPage() {
     });
 
     if (signUpError) {
-      setError(signUpError.message === "User already registered"
-        ? "Cet email est déjà utilisé."
-        : signUpError.message);
+      const msg = signUpError.message.toLowerCase();
+      const fr = msg.includes("already registered") ? "Cet email est déjà utilisé."
+        : msg.includes("password") && msg.includes("6") ? "Le mot de passe doit faire au moins 6 caractères."
+        : msg.includes("password") ? "Le mot de passe est trop court ou trop faible."
+        : msg.includes("valid email") ? "Adresse email invalide."
+        : msg.includes("rate") ? "Trop de tentatives, réessaie dans quelques minutes."
+        : msg.includes("network") ? "Problème de connexion, vérifie ton internet."
+        : "Erreur lors de la création du compte. Réessaie.";
+      setError(fr);
       setLoading(false);
       return;
     }
@@ -90,7 +96,7 @@ export default function RegisterPage() {
               </label>
               <input
                 type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="8 caractères minimum" required minLength={8}
+                placeholder="6 caractères minimum" required minLength={6}
                 className="w-full border border-border rounded-lg px-4 py-3 text-dark placeholder:text-muted focus:outline-none focus:border-primary transition-colors"
               />
             </div>
