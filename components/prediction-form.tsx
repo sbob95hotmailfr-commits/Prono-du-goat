@@ -71,7 +71,7 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
     }
 
     setSuccess(true);
-    setTimeout(() => router.push(`/leagues/${leagueId}`), 1200);
+    setTimeout(() => router.refresh(), 1200);
   }
 
   if (success) {
@@ -86,7 +86,7 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
         <p className="font-mono text-2xl font-bold mt-1" style={{ color: "#00A650" }}>
           {homeScore} – {awayScore}
         </p>
-        <p className="text-xs text-gray-500 mt-2">Redirection en cours…</p>
+        <p className="text-xs text-gray-500 mt-2">Tu peux maintenant pronostiquer les buteurs ci-dessous</p>
       </div>
     );
   }
