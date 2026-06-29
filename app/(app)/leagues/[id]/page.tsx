@@ -73,20 +73,36 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
   // Live
   const liveMatches = allMatches.filter((m: any) => m.status === "live");
 
-  // Grouper tous les matchs non-live par date locale
+  // Séparer matchs à venir et terminés (hors live)
   const nonLive = allMatches.filter((m: any) => m.status !== "live");
-  const byDay: Record<string, any[]> = {};
-  for (const m of nonLive) {
+  const upcomingNonLive = nonLive.filter((m: any) => m.status !== "finished");
+  const finishedNonLive = nonLive.filter((m: any) => m.status === "finished");
+
+  const todayKey = getLocalDay(now.toISOString());
+
+  // Grouper matchs à venir par jour
+  const upcomingByDay: Record<string, any[]> = {};
+  for (const m of upcomingNonLive) {
     const day = getLocalDay(m.kickoff_at);
-    if (!byDay[day]) byDay[day] = [];
-    byDay[day].push(m);
+    if (!upcomingByDay[day]) upcomingByDay[day] = [];
+    upcomingByDay[day].push(m);
   }
-  const sortedDays = Object.keys(byDay).sort((a, b) =>
+  const upcomingDays = Object.keys(upcomingByDay).sort((a, b) =>
     new Date(a.split("/").reverse().join("-")).getTime() -
     new Date(b.split("/").reverse().join("-")).getTime()
   );
 
-  const todayKey = getLocalDay(now.toISOString());
+  // Grouper matchs terminés par jour (plus récent en premier)
+  const finishedByDay: Record<string, any[]> = {};
+  for (const m of finishedNonLive) {
+    const day = getLocalDay(m.kickoff_at);
+    if (!finishedByDay[day]) finishedByDay[day] = [];
+    finishedByDay[day].push(m);
+  }
+  const finishedDays = Object.keys(finishedByDay).sort((a, b) =>
+    new Date(b.split("/").reverse().join("-")).getTime() -
+    new Date(a.split("/").reverse().join("-")).getTime()
+  );
 
   // Stats rapides pour l'utilisateur
   const myStanding = standings.find((s: any) => s.user_id === user.id);
@@ -177,20 +193,16 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
             </div>
           )}
 
-          {/* Matchs par date */}
-          {sortedDays.map((day) => {
-            const dayMatches = byDay[day];
+          {/* Matchs à venir par date */}
+          {upcomingDays.map((day) => {
+            const dayMatches = upcomingByDay[day];
             const isToday = day === todayKey;
-            const dayDate = new Date(day.split("/").reverse().join("-"));
-            const todayDate = new Date(todayKey.split("/").reverse().join("-"));
-            const isPast = dayDate < todayDate;
 
             return (
               <div key={day} className="mb-4">
-                {/* Header de date */}
                 <div className="flex items-center gap-3 px-4 py-2.5 rounded-t-xl"
-                  style={{ background: isToday ? "#003DA5" : isPast ? "#1A2535" : "#192233" }}>
-                  <span className={`text-xs font-bold uppercase tracking-wide ${isToday ? "text-white" : isPast ? "text-gray-500" : "text-gray-300"}`}>
+                  style={{ background: isToday ? "#003DA5" : "#192233" }}>
+                  <span className={`text-xs font-bold uppercase tracking-wide ${isToday ? "text-white" : "text-gray-300"}`}>
                     {formatDayHeader(dayMatches[0].kickoff_at)}
                   </span>
                   {isToday && (
@@ -202,7 +214,7 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
 
                 <div className="rounded-b-xl overflow-hidden" style={{ background: "#1A2535" }}>
                   {dayMatches.map((m: any, idx: number) => {
-                    const locked = isMatchLocked(m.kickoff_at) || m.status === "finished";
+                    const locked = isMatchLocked(m.kickoff_at);
                     const predicted = predictedMatchIds.has(m.id);
                     return (
                       <div key={m.id} className={idx > 0 ? "border-t border-white/5" : ""}>
@@ -210,7 +222,6 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
                           match={m}
                           leagueId={id}
                           locked={locked}
-                          showScore={m.status === "finished"}
                           predicted={predicted}
                           href={`/leagues/${id}/match/${m.id}`}
                         />
@@ -221,6 +232,51 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
               </div>
             );
           })}
+
+          {/* Matchs terminés — section pliable */}
+          {finishedDays.length > 0 && (
+            <details className="mt-8">
+              <summary className="cursor-pointer flex items-center gap-3 px-4 py-3 rounded-xl mb-4"
+                style={{ background: "#111927" }}>
+                <span className="text-white font-bold text-sm">Matchs terminés</span>
+                <span className="text-gray-500 text-xs">({finishedNonLive.length} matchs)</span>
+                <span className="text-gray-500 text-xs ml-auto">Cliquer pour afficher ▾</span>
+              </summary>
+
+              {finishedDays.map((day) => {
+                const dayMatches = finishedByDay[day];
+
+                return (
+                  <div key={day} className="mb-4">
+                    <div className="flex items-center gap-3 px-4 py-2.5 rounded-t-xl"
+                      style={{ background: "#1A2535" }}>
+                      <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
+                        {formatDayHeader(dayMatches[0].kickoff_at)}
+                      </span>
+                    </div>
+
+                    <div className="rounded-b-xl overflow-hidden" style={{ background: "#1A2535" }}>
+                      {dayMatches.map((m: any, idx: number) => {
+                        const predicted = predictedMatchIds.has(m.id);
+                        return (
+                          <div key={m.id} className={idx > 0 ? "border-t border-white/5" : ""}>
+                            <MatchCard
+                              match={m}
+                              leagueId={id}
+                              locked
+                              showScore
+                              predicted={predicted}
+                              href={`/leagues/${id}/match/${m.id}`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </details>
+          )}
         </div>
 
         {/* Classement ligue */}
