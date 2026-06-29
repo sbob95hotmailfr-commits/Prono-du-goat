@@ -197,6 +197,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
         {prediction && players.length > 0 && (
           <ScorerForm
             predictionId={prediction.id}
+            leagueId={id}
             players={players}
             homeTeam={m.home_team}
             awayTeam={m.away_team}

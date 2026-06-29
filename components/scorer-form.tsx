@@ -20,6 +20,7 @@ interface ScorerEntry {
 
 interface ScorerFormProps {
   predictionId: string;
+  leagueId: string;
   players: Player[];
   homeTeam: string;
   awayTeam: string;
@@ -46,6 +47,7 @@ function buildInitialSlots(
 
 export function ScorerForm({
   predictionId,
+  leagueId,
   players,
   homeTeam,
   awayTeam,
@@ -135,7 +137,7 @@ export function ScorerForm({
 
     setSuccess(true);
     setLoading(false);
-    setTimeout(() => { setSuccess(false); router.refresh(); }, 1500);
+    setTimeout(() => router.push(`/leagues/${leagueId}`), 1500);
   }
 
   function renderTeamSlots(
