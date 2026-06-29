@@ -50,6 +50,7 @@ const EN_TO_FR: Record<string, string> = {
   "cote d'ivoire": "Côte d'Ivoire",
   "cape verde": "Cap-Vert",
   "cabo verde": "Cap-Vert",
+  "cape verde islands": "Cap-Vert",
   "paraguay": "Paraguay",
   "indonesia": "Indonésie",
   "uzbekistan": "Ouzbékistan",
