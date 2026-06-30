@@ -33,21 +33,37 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, message: "Aucun buteur disponible pour le moment", updated: 0 });
   }
 
-  // Récupérer tous nos joueurs avec leur api_football_id (= id football-data.org)
+  // Récupérer tous nos joueurs avec leur api_football_id et leur nom
   const { data: dbPlayers } = await adminSupabase
     .from("players")
     .select("id, api_football_id, name");
 
   const playerByApiId = new Map((dbPlayers ?? []).map((p: any) => [p.api_football_id, p.id]));
+  // Fallback par nom normalisé
+  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  const playerByName = new Map((dbPlayers ?? []).map((p: any) => [normalize(p.name), p.id]));
 
   // Reconstruire player_stats depuis l'endpoint scorers
   let matched = 0;
+  let matchedByName = 0;
   let unmatched: string[] = [];
   const rows: { player_id: string; goals: number; assists: number; matches_played: number }[] = [];
+  const idUpdates: { id: string; api_football_id: number }[] = [];
 
   for (const s of scorers) {
     const apiPlayerId = s.player?.id;
-    const dbPlayerId = playerByApiId.get(apiPlayerId);
+    let dbPlayerId = playerByApiId.get(apiPlayerId);
+
+    // Fallback : match par nom si l'ID ne correspond pas
+    if (!dbPlayerId && s.player?.name) {
+      const normalizedName = normalize(s.player.name);
+      dbPlayerId = playerByName.get(normalizedName);
+      if (dbPlayerId) {
+        matchedByName++;
+        // Mémoriser pour corriger l'api_football_id en base
+        idUpdates.push({ id: dbPlayerId, api_football_id: apiPlayerId });
+      }
+    }
 
     if (!dbPlayerId) {
       unmatched.push(s.player?.name ?? "?");
@@ -63,6 +79,11 @@ export async function GET(req: NextRequest) {
     matched++;
   }
 
+  // Corriger les api_football_id manquants pour les prochaines syncs
+  for (const u of idUpdates) {
+    await adminSupabase.from("players").update({ api_football_id: u.api_football_id }).eq("id", u.id);
+  }
+
   // Remplacer player_stats par les données fraîches
   await adminSupabase.from("player_stats").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   if (rows.length) {
@@ -72,8 +93,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     success: true,
     scorers_from_api: scorers.length,
-    matched,
+    matched_by_id: matched - matchedByName,
+    matched_by_name: matchedByName,
+    matched_total: matched,
     unmatched_count: unmatched.length,
-    unmatched_sample: unmatched.slice(0, 10),
+    unmatched: unmatched,
   });
 }
