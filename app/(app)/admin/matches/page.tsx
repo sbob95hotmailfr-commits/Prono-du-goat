@@ -67,7 +67,14 @@ export default async function AdminMatchesPage() {
                 {(match.home_team?.startsWith("Qualifié") || match.away_team?.startsWith("Qualifié")) && (
                   <AdminTeamsForm matchId={match.id} homeTeam={match.home_team} awayTeam={match.away_team} />
                 )}
-                <AdminScoreForm matchId={match.id} homeFlag={match.home_flag ?? ""} awayFlag={match.away_flag ?? ""} />
+                <AdminScoreForm
+                  matchId={match.id}
+                  homeFlag={match.home_flag ?? ""}
+                  awayFlag={match.away_flag ?? ""}
+                  homeTeam={match.home_team}
+                  awayTeam={match.away_team}
+                  stage={match.stage}
+                />
               </div>
             ))}
           </div>
@@ -77,15 +84,35 @@ export default async function AdminMatchesPage() {
       {finished.length > 0 && (
         <section>
           <h2 className="font-bold text-dark mb-3">Matchs terminés ({finished.length})</h2>
-          <div className="card divide-y divide-border">
+          <div className="space-y-3">
             {finished.map((match) => (
-              <div key={match.id} className="flex items-center justify-between p-3">
-                <p className="text-sm text-dark">
-                  {match.home_flag} {match.home_team} vs {match.away_flag} {match.away_team}
-                </p>
-                <span className="font-mono font-bold text-sm text-primary">
-                  {match.home_score} – {match.away_score}
-                </span>
+              <div key={match.id} className="card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <p className="font-semibold text-dark text-sm">
+                      {match.home_flag} {match.home_team} vs {match.away_flag} {match.away_team}
+                    </p>
+                    <p className="text-xs text-muted">{formatDate(match.kickoff_at)} · {match.stage}</p>
+                  </div>
+                  <span className="font-mono font-bold text-sm text-primary">
+                    {match.home_score} – {match.away_score}
+                  </span>
+                </div>
+                <details className="text-xs text-muted cursor-pointer">
+                  <summary className="hover:text-dark">Corriger le score</summary>
+                  <div className="mt-2">
+                    <AdminScoreForm
+                      matchId={match.id}
+                      homeFlag={match.home_flag ?? ""}
+                      awayFlag={match.away_flag ?? ""}
+                      homeTeam={match.home_team}
+                      awayTeam={match.away_team}
+                      stage={match.stage}
+                      initialHome={match.home_score ?? 0}
+                      initialAway={match.away_score ?? 0}
+                    />
+                  </div>
+                </details>
               </div>
             ))}
           </div>

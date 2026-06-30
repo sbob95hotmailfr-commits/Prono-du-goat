@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { matchId } = body;
+  const { matchId, winner } = body;
   const homeScore = Number(body.homeScore);
   const awayScore = Number(body.awayScore);
 
@@ -125,18 +125,19 @@ export async function POST(request: Request) {
     const slot = (stageMatches ?? []).findIndex((m) => m.id === matchId) + 1;
 
     if (slot > 0) {
-      const winner = homeScore > awayScore ? matchInfo.home_team : matchInfo.away_team;
+      // Utilise le vainqueur explicite (tirs au but) ou le score sinon
+      const matchWinner = winner ?? (homeScore > awayScore ? matchInfo.home_team : matchInfo.away_team);
       const placeholder = `Vainqueur ${prefix}${slot}`;
 
       await adminSupabase
         .from("matches")
-        .update({ home_team: winner })
+        .update({ home_team: matchWinner })
         .eq("stage", nextStage)
         .eq("home_team", placeholder);
 
       await adminSupabase
         .from("matches")
-        .update({ away_team: winner })
+        .update({ away_team: matchWinner })
         .eq("stage", nextStage)
         .eq("away_team", placeholder);
     }
