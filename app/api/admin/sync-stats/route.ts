@@ -81,7 +81,8 @@ export async function GET(req: NextRequest) {
     .from("players")
     .select("id, api_football_id, name");
 
-  const playerByApiId = new Map((dbPlayers ?? []).map((p: any) => [p.api_football_id, p.id]));
+  // Forcer la comparaison numérique pour éviter les discordances de type string/number
+  const playerByApiId = new Map((dbPlayers ?? []).map((p: any) => [Number(p.api_football_id), p.id]));
   const playerByNorm = new Map((dbPlayers ?? []).map((p: any) => [normalize(p.name), p.id]));
 
   const rows: { player_id: string; goals: number; assists: number; matches_played: number }[] = [];
@@ -95,8 +96,8 @@ export async function GET(req: NextRequest) {
     const playerName = s.player?.name ?? "?";
     let dbPlayerId: string | undefined;
 
-    // 1. Match par api_football_id
-    dbPlayerId = playerByApiId.get(apiPlayerId);
+    // 1. Match par api_football_id (comparaison numérique)
+    dbPlayerId = playerByApiId.get(Number(apiPlayerId));
     if (dbPlayerId) {
       matchedById++;
     }
@@ -112,7 +113,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Insérer le joueur manquant directement depuis l'API scorers
+    // 3. Fallback DB : recherche ILIKE par nom (capte les variantes d'écriture)
+    if (!dbPlayerId && playerName !== "?") {
+      const { data: dbMatch } = await adminSupabase
+        .from("players")
+        .select("id")
+        .ilike("name", playerName)
+        .maybeSingle();
+      if (dbMatch?.id) {
+        dbPlayerId = dbMatch.id;
+        matchedByName++;
+        await adminSupabase.from("players").update({ api_football_id: Number(apiPlayerId) }).eq("id", dbPlayerId);
+        playerByApiId.set(Number(apiPlayerId), dbPlayerId);
+      }
+    }
+
+    // 4. Insérer le joueur manquant directement depuis l'API scorers
     if (!dbPlayerId && apiPlayerId && playerName !== "?") {
       const teamNameEn = s.team?.name ?? s.team?.shortName ?? "";
       const teamNameFr = toFr(teamNameEn);
@@ -121,7 +137,7 @@ export async function GET(req: NextRequest) {
       const { data: newPlayer, error: insertErr } = await adminSupabase
         .from("players")
         .insert({
-          api_football_id: apiPlayerId,
+          api_football_id: Number(apiPlayerId),
           name: playerName,
           team_name: teamNameFr,
           position: positionFr,
@@ -131,12 +147,23 @@ export async function GET(req: NextRequest) {
 
       if (!insertErr && newPlayer?.id) {
         dbPlayerId = newPlayer.id;
-        playerByApiId.set(apiPlayerId, dbPlayerId);
+        playerByApiId.set(Number(apiPlayerId), dbPlayerId);
         playerByNorm.set(normalize(playerName), dbPlayerId);
         inserted++;
       } else {
-        stillUnmatched.push(playerName);
-        continue;
+        // Dernier recours : upsert sur le nom exact en cas de conflit d'ID
+        const { data: upserted } = await adminSupabase
+          .from("players")
+          .select("id")
+          .eq("api_football_id", Number(apiPlayerId))
+          .maybeSingle();
+        if (upserted?.id) {
+          dbPlayerId = upserted.id;
+          inserted++;
+        } else {
+          stillUnmatched.push(`${playerName} (err: ${insertErr?.message})`);
+          continue;
+        }
       }
     }
 
