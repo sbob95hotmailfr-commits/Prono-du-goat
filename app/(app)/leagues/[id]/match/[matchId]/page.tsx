@@ -187,10 +187,18 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
               </p>
               <p className="text-xs text-gray-500 mt-1">Tu peux le modifier jusqu&apos;au coup de sifflet</p>
             </div>
-            <PredictionForm matchId={matchId} leagueId={id} existingPrediction={prediction} kickoffAt={m.kickoff_at} />
+            <PredictionForm
+              matchId={matchId} leagueId={id}
+              existingPrediction={prediction} kickoffAt={m.kickoff_at}
+              players={players} homeTeam={m.home_team} awayTeam={m.away_team}
+            />
           </div>
         ) : (
-          <PredictionForm matchId={matchId} leagueId={id} existingPrediction={null} kickoffAt={m.kickoff_at} />
+          <PredictionForm
+            matchId={matchId} leagueId={id}
+            existingPrediction={null} kickoffAt={m.kickoff_at}
+            players={players} homeTeam={m.home_team} awayTeam={m.away_team}
+          />
         )}
 
         {/* Section Pronostic Buteur */}

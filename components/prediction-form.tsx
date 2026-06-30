@@ -4,89 +4,107 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
 import type { Prediction } from "@/types/database";
+import { ScorerForm } from "@/components/scorer-form";
+
+interface Player {
+  id: string;
+  name: string;
+  team_name: string;
+  position: string | null;
+}
 
 interface PredictionFormProps {
   matchId: string;
   leagueId: string;
   existingPrediction: Prediction | null;
   kickoffAt: string;
+  // Props optionnelles pour le formulaire buteurs post-soumission
+  players?: Player[];
+  homeTeam?: string;
+  awayTeam?: string;
 }
 
-export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffAt }: PredictionFormProps) {
+export function PredictionForm({
+  matchId,
+  leagueId,
+  existingPrediction,
+  kickoffAt,
+  players = [],
+  homeTeam = "",
+  awayTeam = "",
+}: PredictionFormProps) {
   const router = useRouter();
   const [homeScore, setHomeScore] = useState(existingPrediction?.home_score_pred ?? 0);
   const [awayScore, setAwayScore] = useState(existingPrediction?.away_score_pred ?? 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [savedPrediction, setSavedPrediction] = useState<{ id: string; home_score_pred: number; away_score_pred: number } | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const res = await fetch("/api/predictions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId, leagueId, homeScore, awayScore }),
+    });
 
-    // Vérification côté client : le match n'a pas encore commencé
-    if (new Date(kickoffAt) <= new Date()) {
+    const data = await res.json();
+
+    if (!res.ok) {
+      // Match commencé entre-temps → recharger pour afficher le bon état
+      if (res.status === 403) {
+        router.refresh();
+        router.push(`/leagues/${leagueId}/match/${matchId}`);
+        return;
+      }
+      setError(data.error ?? `Erreur (${res.status})`);
       setLoading(false);
-      window.location.reload(); // Recharge la page pour afficher l'état verrouillé
       return;
     }
 
-    if (existingPrediction) {
-      // Modifier le pronostic existant
-      const { error: updateError } = await supabase
-        .from("predictions")
-        .update({ home_score_pred: homeScore, away_score_pred: awayScore })
-        .eq("id", existingPrediction.id)
-        .eq("is_locked", false); // sécurité supplémentaire
-
-      if (updateError) {
-        setError("Impossible de modifier. Le pronostic est peut-être verrouillé.");
-        setLoading(false);
-        return;
-      }
-    } else {
-      // Créer un nouveau pronostic
-      const { error: insertError } = await supabase
-        .from("predictions")
-        .insert({
-          user_id: user.id,
-          match_id: matchId,
-          league_id: leagueId,
-          home_score_pred: homeScore,
-          away_score_pred: awayScore,
-        });
-
-      if (insertError) {
-        setError("Impossible d'enregistrer. Le match a peut-être déjà commencé.");
-        setLoading(false);
-        return;
-      }
-    }
-
-    setSuccess(true);
-    setTimeout(() => window.location.reload(), 1500);
+    // Prediction enregistrée côté serveur avec son ID
+    setSavedPrediction(data.prediction);
+    setLoading(false);
   }
 
-  if (success) {
+  // Après soumission réussie : afficher confirmation + formulaire buteurs directement
+  if (savedPrediction) {
     return (
-      <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
-        <div className="flex justify-center mb-3">
-          <div className="ball-frozen" style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: "3px solid #00A650", boxShadow: "0 0 16px rgba(0,166,80,0.4)" }}>
-            <Image src="/ball.png" alt="Pronostic enregistré" width={80} height={80} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+      <div className="space-y-4">
+        {/* Confirmation */}
+        <div className="rounded-2xl p-6 text-center" style={{ background: "#1A2535", border: "1px solid rgba(0,166,80,0.3)" }}>
+          <div className="flex justify-center mb-3">
+            <div style={{ width: 80, height: 80, borderRadius: "50%", overflow: "hidden", border: "3px solid #00A650", boxShadow: "0 0 16px rgba(0,166,80,0.4)" }}>
+              <Image src="/ball.png" alt="Pronostic enregistré" width={80} height={80} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+            </div>
           </div>
+          <p className="font-bold text-white">Pronostic enregistré !</p>
+          <p className="font-mono text-2xl font-bold mt-1" style={{ color: "#00A650" }}>
+            {savedPrediction.home_score_pred} – {savedPrediction.away_score_pred}
+          </p>
+          {players.length > 0 && (
+            <p className="text-xs text-gray-500 mt-2">Pronostique maintenant les buteurs ci-dessous</p>
+          )}
         </div>
-        <p className="font-bold text-white">Pronostic enregistré !</p>
-        <p className="font-mono text-2xl font-bold mt-1" style={{ color: "#00A650" }}>
-          {homeScore} – {awayScore}
-        </p>
-        <p className="text-xs text-gray-500 mt-2">Tu peux maintenant pronostiquer les buteurs ci-dessous</p>
+
+        {/* Formulaire buteurs directement (pas de reload nécessaire) */}
+        {players.length > 0 && (
+          <ScorerForm
+            predictionId={savedPrediction.id}
+            leagueId={leagueId}
+            players={players}
+            homeTeam={homeTeam}
+            awayTeam={awayTeam}
+            homeGoals={savedPrediction.home_score_pred}
+            awayGoals={savedPrediction.away_score_pred}
+            currentScorers={[]}
+            locked={false}
+          />
+        )}
       </div>
     );
   }
