@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 export function AdminRecalculateBtn() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [loadingScorers, setLoadingScorers] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
   async function handleClick() {
@@ -25,14 +26,38 @@ export function AdminRecalculateBtn() {
     setLoading(false);
   }
 
+  async function handleSyncScorers() {
+    if (!confirm("Récupérer les buteurs réels depuis l'API et recalculer les bonus buteurs pour tous les matchs terminés ?")) return;
+    setLoadingScorers(true);
+    setResult(null);
+
+    const res = await fetch("/api/admin/sync-scorer-bonuses", { method: "POST" });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setResult("❌ Erreur : " + (data.error ?? res.status));
+    } else {
+      setResult(`⚽ ${data.matches_processed} matchs traités — ${data.bonuses_updated} bonus buteurs calculés${data.skipped_count > 0 ? ` (${data.skipped_count} matchs non trouvés dans l'API)` : ""}`);
+      setTimeout(() => router.refresh(), 800);
+    }
+    setLoadingScorers(false);
+  }
+
   return (
     <div className="flex flex-col gap-2 items-start">
       <button
         onClick={handleClick}
-        disabled={loading}
+        disabled={loading || loadingScorers}
         className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
       >
         {loading ? "Calcul en cours…" : "🔄 Recalculer tous les points"}
+      </button>
+      <button
+        onClick={handleSyncScorers}
+        disabled={loading || loadingScorers}
+        className="bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50"
+      >
+        {loadingScorers ? "Sync en cours…" : "⚽ Sync buteurs réels + bonus"}
       </button>
       {result && <p className="text-sm font-semibold">{result}</p>}
     </div>

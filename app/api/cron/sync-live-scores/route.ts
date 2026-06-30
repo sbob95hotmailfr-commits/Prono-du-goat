@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import { calculatePoints } from "@/lib/points";
+import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 
 // Traduction noms FR → anglais (football-data.org utilise des noms anglais)
 const FR_TO_EN: Record<string, string> = {
@@ -173,13 +173,73 @@ export async function GET(req: NextRequest) {
         .select("id, home_score_pred, away_score_pred")
         .eq("match_id", m.id);
 
+      // Extraire les buteurs réels depuis fix.goals (football-data.org fournit scorer.id)
+      const goals = fix.goals ?? [];
+      const scorerApiIds: number[] = goals
+        .filter((g: any) => g.scorer?.id)
+        .map((g: any) => Number(g.scorer.id));
+
+      let realScorerDbIds: string[] = [];
+
+      if (scorerApiIds.length > 0) {
+        const { data: matchingPlayers } = await supabase
+          .from("players")
+          .select("id, api_football_id")
+          .in("api_football_id", scorerApiIds);
+
+        const apiToDb = new Map(
+          (matchingPlayers ?? []).map((p: any) => [Number(p.api_football_id), p.id as string])
+        );
+
+        // Conserver les doublons (hat-trick = même joueur 3x)
+        realScorerDbIds = scorerApiIds
+          .map((id) => apiToDb.get(id))
+          .filter((id): id is string => Boolean(id));
+
+        if (realScorerDbIds.length > 0) {
+          await supabase.from("match_scorers").delete().eq("match_id", m.id);
+          for (const playerId of realScorerDbIds) {
+            await supabase.from("match_scorers").insert({ match_id: m.id, player_id: playerId });
+          }
+        }
+      }
+
       if (preds?.length) {
+        const predIds = preds.map((p: any) => p.id);
+
+        // Récupérer tous les pronostics buteur pour ce match
+        const { data: scorerPreds } = await supabase
+          .from("scorer_predictions")
+          .select("prediction_id, player_id")
+          .in("prediction_id", predIds);
+
+        const byPred: Record<string, string[]> = {};
+        for (const sp of scorerPreds ?? []) {
+          if (!byPred[sp.prediction_id]) byPred[sp.prediction_id] = [];
+          if (sp.player_id) byPred[sp.prediction_id].push(sp.player_id);
+        }
+
+        // Mettre à jour points = score + bonus buteur
         await Promise.all(preds.map((p: any) => {
           const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
+          const predictedIds = byPred[p.id] ?? [];
+          const bonus = realScorerDbIds.length > 0
+            ? calculateScorerBonusMulti(predictedIds, realScorerDbIds)
+            : 0;
           return supabase.from("predictions")
-            .update({ points_earned: pts, is_locked: true })
+            .update({ points_earned: pts + bonus, is_locked: true })
             .eq("id", p.id);
         }));
+
+        // Sauvegarder bonus_earned sur scorer_predictions si on a les buteurs réels
+        if (realScorerDbIds.length > 0) {
+          for (const predId of Object.keys(byPred)) {
+            const bonus = calculateScorerBonusMulti(byPred[predId], realScorerDbIds);
+            await supabase.from("scorer_predictions")
+              .update({ bonus_earned: bonus })
+              .eq("prediction_id", predId);
+          }
+        }
       }
 
       // Propagation bracket si match knockout

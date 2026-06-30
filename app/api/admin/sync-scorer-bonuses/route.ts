@@ -1,0 +1,156 @@
+// @ts-nocheck
+// Recalcule automatiquement les bonus buteurs pour tous les matchs terminés
+// en récupérant les buteurs réels depuis football-data.org (fix.goals)
+import { NextRequest, NextResponse } from "next/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
+
+function norm(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/-/g, " ").replace(/\s+/g, " ").trim();
+}
+function teamsMatch(db: string, api: string): boolean {
+  const a = norm(db), b = norm(api);
+  if (a === b) return true;
+  if (a.includes(b) || b.includes(a)) return true;
+  const aw = a.split(" ").filter((w: string) => w.length >= 4);
+  const bw = b.split(" ").filter((w: string) => w.length >= 4);
+  return aw.some((w: string) => bw.includes(w));
+}
+
+export async function POST(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+
+  const adminSupabase = createAdminClient();
+  const { data: adminLeagues } = await adminSupabase
+    .from("leagues").select("id").eq("admin_id", user.id);
+  if (!adminLeagues?.length) return NextResponse.json({ error: "Accès refusé" }, { status: 403 });
+
+  const API_KEY = process.env.API_FOOTBALL_KEY;
+  if (!API_KEY) return NextResponse.json({ error: "API_FOOTBALL_KEY manquant" }, { status: 500 });
+
+  // Récupérer tous les matchs terminés en base
+  const { data: finishedMatches } = await adminSupabase
+    .from("matches")
+    .select("id, home_team, away_team, home_score, away_score")
+    .eq("status", "finished")
+    .not("home_score", "is", null);
+
+  if (!finishedMatches?.length) {
+    return NextResponse.json({ success: true, message: "Aucun match terminé", updated: 0 });
+  }
+
+  // Récupérer tous les matchs WC depuis l'API (1 seul appel)
+  const res = await fetch("https://api.football-data.org/v4/competitions/WC/matches", {
+    headers: { "X-Auth-Token": API_KEY },
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    return NextResponse.json({ error: "Erreur API football-data.org", details: err }, { status: 502 });
+  }
+  const apiData = await res.json();
+  const allFixtures: any[] = apiData.matches ?? [];
+  const doneFixtures = allFixtures.filter((f: any) => f.status === "FINISHED");
+
+  // Charger tous les joueurs pour le mapping api_football_id → db id
+  const { data: allPlayers } = await adminSupabase
+    .from("players").select("id, api_football_id, name");
+  const apiToDb = new Map(
+    (allPlayers ?? []).map((p: any) => [Number(p.api_football_id), p.id as string])
+  );
+
+  let matchesProcessed = 0;
+  let bonusesUpdated = 0;
+  const skipped: string[] = [];
+
+  for (const m of finishedMatches) {
+    // Trouver le match correspondant dans l'API
+    const fix = doneFixtures.find((f: any) =>
+      teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
+      teamsMatch(m.away_team, f.awayTeam?.name ?? "")
+    );
+
+    if (!fix) {
+      skipped.push(`${m.home_team} vs ${m.away_team}`);
+      continue;
+    }
+
+    // Extraire les buteurs réels
+    const goals: any[] = fix.goals ?? [];
+    const scorerApiIds: number[] = goals
+      .filter((g: any) => g.scorer?.id)
+      .map((g: any) => Number(g.scorer.id));
+
+    // Mapper vers les IDs joueurs en DB (conserver doublons pour hat-trick)
+    const realScorerDbIds: string[] = scorerApiIds
+      .map((id) => apiToDb.get(id))
+      .filter((id): id is string => Boolean(id));
+
+    // Sauvegarder les buteurs réels dans match_scorers
+    await adminSupabase.from("match_scorers").delete().eq("match_id", m.id);
+    for (const playerId of realScorerDbIds) {
+      await adminSupabase.from("match_scorers").insert({ match_id: m.id, player_id: playerId });
+    }
+
+    // Récupérer toutes les prédictions pour ce match
+    const { data: preds } = await adminSupabase
+      .from("predictions")
+      .select("id, home_score_pred, away_score_pred")
+      .eq("match_id", m.id);
+
+    if (!preds?.length) {
+      matchesProcessed++;
+      continue;
+    }
+
+    const predIds = preds.map((p: any) => p.id);
+
+    // Récupérer les pronostics buteur
+    const { data: scorerPreds } = await adminSupabase
+      .from("scorer_predictions")
+      .select("prediction_id, player_id")
+      .in("prediction_id", predIds);
+
+    const byPred: Record<string, string[]> = {};
+    for (const sp of scorerPreds ?? []) {
+      if (!byPred[sp.prediction_id]) byPred[sp.prediction_id] = [];
+      if (sp.player_id) byPred[sp.prediction_id].push(sp.player_id);
+    }
+
+    // Calculer et sauvegarder points = score + bonus buteur
+    for (const p of preds) {
+      const pts = calculatePoints(p.home_score_pred, p.away_score_pred, m.home_score, m.away_score);
+      const predictedIds = byPred[p.id] ?? [];
+      const bonus = realScorerDbIds.length > 0
+        ? calculateScorerBonusMulti(predictedIds, realScorerDbIds)
+        : 0;
+
+      await adminSupabase.from("predictions")
+        .update({ points_earned: pts + bonus, is_locked: true })
+        .eq("id", p.id);
+    }
+
+    // Mettre à jour bonus_earned sur scorer_predictions
+    for (const predId of Object.keys(byPred)) {
+      const bonus = realScorerDbIds.length > 0
+        ? calculateScorerBonusMulti(byPred[predId], realScorerDbIds)
+        : 0;
+      await adminSupabase.from("scorer_predictions")
+        .update({ bonus_earned: bonus })
+        .eq("prediction_id", predId);
+      bonusesUpdated++;
+    }
+
+    matchesProcessed++;
+  }
+
+  return NextResponse.json({
+    success: true,
+    matches_processed: matchesProcessed,
+    bonuses_updated: bonusesUpdated,
+    skipped_count: skipped.length,
+    skipped,
+  });
+}
