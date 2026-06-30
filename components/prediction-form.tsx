@@ -33,8 +33,8 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
 
     // Vérification côté client : le match n'a pas encore commencé
     if (new Date(kickoffAt) <= new Date()) {
-      setError("⚠️ Ce match a déjà commencé. Pronostic impossible.");
       setLoading(false);
+      window.location.reload(); // Recharge la page pour afficher l'état verrouillé
       return;
     }
 
@@ -71,7 +71,7 @@ export function PredictionForm({ matchId, leagueId, existingPrediction, kickoffA
     }
 
     setSuccess(true);
-    setTimeout(() => router.refresh(), 1200);
+    setTimeout(() => window.location.reload(), 1500);
   }
 
   if (success) {
