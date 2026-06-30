@@ -84,14 +84,6 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
     .eq("summary_date", today)
     .single() as any;
 
-  // Top buteurs du tournoi
-  const { data: topScorersRaw } = await adminSupabase
-    .from("player_stats")
-    .select("goals, matches_played, players(name, team_name, position)")
-    .order("goals", { ascending: false })
-    .limit(10) as any;
-  const topScorers = (topScorersRaw ?? []).filter((s: any) => s.goals > 0);
-
   const myRank = standings.findIndex(s => s.user_id === user.id) + 1;
   const isAdmin = (league as any).admin_id === user.id;
   const medalEmoji = ["🥇", "🥈", "🥉"];
@@ -180,31 +172,6 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
                   <span className="text-sm font-bold text-white">Total</span>
                   <span className="font-bold" style={{ color: "#003DA5" }}>{totalPoints} pts</span>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Meilleurs buteurs du tournoi */}
-          {topScorers.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <div className="px-4 py-3" style={{ background: "#0D1B2E" }}>
-                <p className="text-[10px] text-gray-400 uppercase tracking-widest font-semibold">⚽ Meilleurs buteurs du tournoi</p>
-              </div>
-              <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-                {topScorers.map((s: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold text-gray-500 w-5">{i + 1}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-white">{s.players?.name}</p>
-                        <p className="text-[10px] text-gray-500">{s.players?.team_name}</p>
-                      </div>
-                    </div>
-                    <span className="font-mono font-bold" style={{ color: "#F5A623" }}>
-                      {s.goals} ⚽
-                    </span>
-                  </div>
-                ))}
               </div>
             </div>
           )}
