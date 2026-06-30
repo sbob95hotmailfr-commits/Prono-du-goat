@@ -203,7 +203,13 @@ export async function GET(req: NextRequest) {
           .eq("stage", m.stage).order("kickoff_at", { ascending: true });
         const slot = (stageMatches ?? []).findIndex((sm: any) => sm.id === m.id) + 1;
         if (slot > 0) {
-          const winner = hs > as_ ? m.home_team : m.away_team;
+          // score.winner = "HOME_TEAM" | "AWAY_TEAM" (gère les tirs au but automatiquement)
+          const apiWinner = fix.score?.winner;
+          const winner = apiWinner === "HOME_TEAM"
+            ? m.home_team
+            : apiWinner === "AWAY_TEAM"
+              ? m.away_team
+              : hs > as_ ? m.home_team : m.away_team; // fallback si winner absent
           const placeholder = `Vainqueur ${prefix}${slot}`;
           await supabase.from("matches").update({ home_team: winner })
             .eq("stage", nextStage).eq("home_team", placeholder);
