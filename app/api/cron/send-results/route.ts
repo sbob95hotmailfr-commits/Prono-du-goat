@@ -10,7 +10,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const MEDALS = ["🥇", "🥈", "🥉"];
 
 export async function GET(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret");
+  const secret = req.headers.get("x-cron-secret") ?? req.headers.get("authorization")?.replace("Bearer ", "");
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
