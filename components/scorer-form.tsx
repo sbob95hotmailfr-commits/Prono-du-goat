@@ -193,7 +193,7 @@ export function ScorerForm({
     <div className="rounded-2xl p-5" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>
       <div className="mb-4">
         <h3 className="font-bold text-white text-sm">⚽ Pronostic Buteurs</h3>
-        <p className="text-xs text-gray-500 mt-0.5">+3 pts si tous les buteurs trouvés · +1 pt si au moins un</p>
+        <p className="text-xs text-gray-500 mt-0.5">+1 pt par buteur correctement pronostiqué</p>
       </div>
 
       {success && (

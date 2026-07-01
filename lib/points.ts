@@ -24,24 +24,26 @@ export function getPointsLabel(points: number): string {
 
 // Calcul du bonus buteur (multi-slots)
 // predictedIds : tous les joueurs pronostiqués par l'utilisateur pour ce match
-// actualIds    : tous les buteurs réels du match (peut avoir doublons si hat-trick)
-// Règles :
-//   - Tous les buteurs réels prédits exactement (même multiset) → 3 pts bonus
-//   - Au moins 1 buteur prédit se trouve parmi les réels        → 1 pt bonus
-//   - Aucun match                                               → 0
+// actualIds    : tous les buteurs réels du match (doublons inclus si hat-trick)
+// Règle : +1 pt par buteur correctement pronostiqué (matching multiset)
 export function calculateScorerBonusMulti(
   predictedIds: string[],
   actualIds: string[]
 ): number {
   if (!predictedIds.length || !actualIds.length) return 0;
 
-  const actualSet = [...actualIds].sort().join(",");
-  const predSet   = [...predictedIds].sort().join(",");
+  const remaining = [...actualIds];
+  let points = 0;
 
-  if (predSet === actualSet) return 3;
+  for (const id of predictedIds) {
+    const idx = remaining.indexOf(id);
+    if (idx !== -1) {
+      points++;
+      remaining.splice(idx, 1);
+    }
+  }
 
-  const hasOne = predictedIds.some((id) => actualIds.includes(id));
-  return hasOne ? 1 : 0;
+  return points;
 }
 
 // Compat ancienne API (1 joueur unique)
