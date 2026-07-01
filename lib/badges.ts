@@ -16,7 +16,7 @@ const BADGE_RULES: Array<{
         .from("predictions")
         .select("id, user_id")
         .eq("league_id", leagueId)
-        .eq("points_earned", 3)
+        .gte("points_earned", 3)
         .order("created_at", { ascending: true })
         .limit(1)
         .single();

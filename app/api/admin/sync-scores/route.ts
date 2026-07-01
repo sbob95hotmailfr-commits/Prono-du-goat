@@ -209,10 +209,22 @@ export async function POST(request: Request) {
         .eq("match_id", dbMatch.id);
 
       if (preds?.length) {
+        // Récupérer les bonus buteurs existants pour ne pas les écraser
+        const predIds = preds.map((p: any) => p.id);
+        const { data: scorerBonuses } = await adminSupabase
+          .from("scorer_predictions")
+          .select("prediction_id, bonus_earned")
+          .in("prediction_id", predIds);
+        const bonusMap: Record<string, number> = {};
+        for (const sb of scorerBonuses ?? []) {
+          if (!(sb.prediction_id in bonusMap)) bonusMap[sb.prediction_id] = sb.bonus_earned ?? 0;
+        }
+
         await Promise.all(preds.map((pred: any) => {
           const points = calculatePoints(pred.home_score_pred, pred.away_score_pred, homeScore, awayScore);
+          const bonus = bonusMap[pred.id] ?? 0;
           return adminSupabase.from("predictions")
-            .update({ points_earned: points, is_locked: true })
+            .update({ points_earned: points + bonus, is_locked: true })
             .eq("id", pred.id);
         }));
       }

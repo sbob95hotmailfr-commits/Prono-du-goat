@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
+import { checkAndAwardBadges } from "@/lib/badges";
 
 // Traduction noms FR → anglais (football-data.org utilise des noms anglais)
 const FR_TO_EN: Record<string, string> = {
@@ -220,15 +221,23 @@ export async function GET(req: NextRequest) {
         }
 
         // Mettre à jour points = score + bonus buteur
-        await Promise.all(preds.map((p: any) => {
+        const { data: predsFull } = await supabase
+          .from("predictions")
+          .select("id, home_score_pred, away_score_pred, user_id, league_id")
+          .in("id", predIds);
+
+        await Promise.all((predsFull ?? preds).map(async (p: any) => {
           const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
           const predictedIds = byPred[p.id] ?? [];
           const bonus = realScorerDbIds.length > 0
             ? calculateScorerBonusMulti(predictedIds, realScorerDbIds)
             : 0;
-          return supabase.from("predictions")
+          await supabase.from("predictions")
             .update({ points_earned: pts + bonus, is_locked: true })
             .eq("id", p.id);
+          if (p.user_id && p.league_id) {
+            await checkAndAwardBadges(p.user_id, p.league_id);
+          }
         }));
 
         // Sauvegarder bonus_earned sur scorer_predictions si on a les buteurs réels
