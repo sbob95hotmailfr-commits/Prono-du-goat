@@ -37,8 +37,8 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
   const preds = myPreds ?? [];
   const calculatedPreds = preds.filter((p: any) => p.points_earned !== null);
   const totalPreds = preds.length;
-  const exactPreds = preds.filter((p: any) => p.points_earned === 3).length;
-  const goodPreds = preds.filter((p: any) => p.points_earned === 1).length;
+  const exactPreds = preds.filter((p: any) => (p.points_earned ?? 0) >= 3).length;
+  const goodPreds = preds.filter((p: any) => (p.points_earned ?? 0) > 0 && (p.points_earned ?? 0) < 3).length;
   const missedPreds = preds.filter((p: any) => p.points_earned === 0).length;
   const totalPoints = preds.reduce((s: number, p: any) => s + (p.points_earned ?? 0), 0);
   const tauxReussite = calculatedPreds.length > 0
@@ -157,11 +157,11 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
               </div>
               <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
                 <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm font-medium" style={{ color: "#F5A623" }}>⭐ Scores exacts (+3pts)</span>
+                  <span className="text-sm font-medium" style={{ color: "#F5A623" }}>⭐ Bons pronos (≥3pts)</span>
                   <span className="font-bold text-white">{exactPreds}</span>
                 </div>
                 <div className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm font-medium" style={{ color: "#00A650" }}>✓ Bons résultats (+1pt)</span>
+                  <span className="text-sm font-medium" style={{ color: "#00A650" }}>✓ Bons résultats (1-2pts)</span>
                   <span className="font-bold text-white">{goodPreds}</span>
                 </div>
                 <div className="flex items-center justify-between px-4 py-3">

@@ -5,16 +5,43 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 
+const FR_TO_EN: Record<string, string> = {
+  "etats unis": "united states", "mexique": "mexico", "afrique du sud": "south africa",
+  "coree du sud": "south korea", "colombie": "colombia", "suisse": "switzerland",
+  "angleterre": "england", "croatie": "croatia", "nouvelle zelande": "new zealand",
+  "equateur": "ecuador", "perou": "peru", "chili": "chile", "argentine": "argentina",
+  "bresil": "brazil", "algerie": "algeria", "senegal": "senegal", "allemagne": "germany",
+  "arabie saoudite": "saudi arabia", "japon": "japan", "australie": "australia",
+  "espagne": "spain", "maroc": "morocco", "tunisie": "tunisia", "egypte": "egypt",
+  "serbie": "serbia", "georgie": "georgia", "suede": "sweden", "norvege": "norway",
+  "cameroun": "cameroon", "ecosse": "scotland", "italie": "italy", "slovaquie": "slovakia",
+  "pays bas": "netherlands", "pologne": "poland", "autriche": "austria",
+  "belgique": "belgium", "danemark": "denmark", "rd congo": "dr congo",
+  "cote d ivoire": "ivory coast", "cote divoire": "ivory coast", "cap vert": "cape verde",
+  "paraguai": "paraguay", "paraguai": "paraguay", "indonesie": "indonesia",
+  "ouzbekistan": "uzbekistan", "portugal": "portugal", "uruguay": "uruguay",
+  "canada": "canada", "france": "france", "ghana": "ghana", "turquie": "turkey",
+};
+const API_ALIASES: Record<string, string> = {
+  "usa": "united states", "korea republic": "south korea", "republic of korea": "south korea",
+  "côte d'ivoire": "ivory coast", "ivory coast": "ivory coast",
+  "dr congo": "dr congo", "congo dr": "dr congo", "bosnia and herzegovina": "bosnia-herzegovina",
+};
 function norm(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/-/g, " ").replace(/\s+/g, " ").trim();
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/&/g, "and")
+    .replace(/-/g, " ").replace(/['''`]/g, "").replace(/\s+/g, " ").trim();
 }
+function toEn(fr: string): string { const n = norm(fr); return FR_TO_EN[n] ?? n; }
+function normApi(api: string): string { const n = norm(api); return API_ALIASES[n] ?? n; }
 function teamsMatch(db: string, api: string): boolean {
-  const a = norm(db), b = norm(api);
-  if (a === b) return true;
-  if (a.includes(b) || b.includes(a)) return true;
-  const aw = a.split(" ").filter((w: string) => w.length >= 4);
-  const bw = b.split(" ").filter((w: string) => w.length >= 4);
-  return aw.some((w: string) => bw.includes(w));
+  const dbEn = norm(toEn(db));
+  const apiEn = normApi(norm(api));
+  if (dbEn === apiEn) return true;
+  if (norm(db) === apiEn) return true;
+  if (dbEn.includes(apiEn) || apiEn.includes(dbEn)) return true;
+  const dbWords = dbEn.split(" ").filter((w: string) => w.length >= 4);
+  const apiWords = apiEn.split(" ").filter((w: string) => w.length >= 4);
+  return dbWords.some((w: string) => apiWords.includes(w));
 }
 
 export async function POST(req: NextRequest) {

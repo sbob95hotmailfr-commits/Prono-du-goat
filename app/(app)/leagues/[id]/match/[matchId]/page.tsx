@@ -25,7 +25,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .from("matches").select("*").eq("id", matchId).single() as any;
   if (!match) notFound();
 
-  const { data: predictionData } = await supabase
+  const adminForPred = createAdminClient();
+  const { data: predictionData } = await adminForPred
     .from("predictions").select("*")
     .eq("user_id", user.id).eq("match_id", matchId)
     .eq("league_id", id).single() as any;
@@ -140,23 +141,27 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             <p className="font-mono text-5xl font-bold text-white mb-4">
               {prediction.home_score_pred} – {prediction.away_score_pred}
             </p>
-            {prediction.points_earned === 3 && (
+            {prediction.points_earned != null && (
               <>
-                <div className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.3)", color: "#F5A623" }}>
-                  ⭐ Score exact — +3 points !
-                </div>
-                <ConfettiClient />
+                {prediction.points_earned >= 3 && (
+                  <>
+                    <div className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.3)", color: "#F5A623" }}>
+                      ⭐ +{prediction.points_earned} points !
+                    </div>
+                    <ConfettiClient />
+                  </>
+                )}
+                {prediction.points_earned > 0 && prediction.points_earned < 3 && (
+                  <div className="inline-flex text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(0,166,80,0.15)", border: "1px solid rgba(0,166,80,0.3)", color: "#00A650" }}>
+                    ✓ Bon résultat — +{prediction.points_earned} point{prediction.points_earned > 1 ? "s" : ""}
+                  </div>
+                )}
+                {prediction.points_earned === 0 && (
+                  <div className="inline-flex text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#6b7280" }}>
+                    ✗ Raté — 0 point
+                  </div>
+                )}
               </>
-            )}
-            {prediction.points_earned === 1 && (
-              <div className="inline-flex text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(0,166,80,0.15)", border: "1px solid rgba(0,166,80,0.3)", color: "#00A650" }}>
-                ✓ Bon résultat — +1 point
-              </div>
-            )}
-            {prediction.points_earned === 0 && (
-              <div className="inline-flex text-sm font-bold px-4 py-2 rounded-full" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#6b7280" }}>
-                ✗ Raté — 0 point
-              </div>
             )}
           </div>
         ) : finished && !prediction ? (
@@ -233,8 +238,8 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 {allPredictions.map((p: any, i: number) => {
                   const isMe = p.user_id === user.id;
                   const pointsStyle =
-                    p.points_earned === 3 ? { background: "rgba(245,166,35,0.15)", color: "#F5A623" } :
-                    p.points_earned === 1 ? { background: "rgba(0,166,80,0.15)", color: "#00A650" } :
+                    (p.points_earned ?? 0) >= 3 ? { background: "rgba(245,166,35,0.15)", color: "#F5A623" } :
+                    (p.points_earned ?? 0) > 0 ? { background: "rgba(0,166,80,0.15)", color: "#00A650" } :
                     { background: "rgba(255,255,255,0.06)", color: "#6b7280" };
 
                   return (
@@ -254,7 +259,7 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                       </span>
                       {finished && p.points_earned != null && (
                         <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={pointsStyle}>
-                          {p.points_earned === 3 ? "⭐" : p.points_earned === 1 ? "✓" : "✗"} {p.points_earned}pt
+                          {(p.points_earned ?? 0) >= 3 ? "⭐" : (p.points_earned ?? 0) > 0 ? "✓" : "✗"} {p.points_earned}pt
                         </span>
                       )}
                     </div>
