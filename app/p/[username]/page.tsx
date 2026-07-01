@@ -51,7 +51,7 @@ export default async function PublicProfilePage({
     .not("points_earned", "is", null) as any;
 
   const total = (preds ?? []).length;
-  const exact = (preds ?? []).filter((p: any) => p.points_earned === 3).length;
+  const exact = (preds ?? []).filter((p: any) => (p.points_earned ?? 0) >= 3).length;
   const exactRate = total > 0 ? Math.round((exact / total) * 100) : 0;
 
   return (

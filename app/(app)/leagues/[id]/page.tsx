@@ -6,6 +6,7 @@ import { redirect, notFound } from "next/navigation";
 import { WcNav } from "@/components/wc-nav";
 import { MatchCard } from "@/components/match-card";
 import { HeroNextMatch } from "@/components/hero-next-match";
+import { ShareLeagueBtn } from "@/components/share-league-btn";
 import { isMatchLocked } from "@/lib/utils";
 import type { LeagueStanding } from "@/types/database";
 
@@ -313,9 +314,10 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            <div className="p-3 text-center border-t border-white/5">
+            <div className="p-3 flex flex-col gap-2 border-t border-white/5">
+              <ShareLeagueBtn leagueId={id} />
               <a href={`/leagues/${id}/groups`}
-                className="text-xs font-semibold hover:underline"
+                className="text-xs font-semibold hover:underline text-center"
                 style={{ color: "#F5A623" }}>
                 Classements des groupes →
               </a>
