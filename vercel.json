@@ -8,5 +8,11 @@
       "path": "/api/cron/send-reminders",
       "schedule": "0 8 * * *"
     }
-  ]
+  ],
+  "functions": {
+    "app/api/admin/sync-scorer-bonuses/route.ts": { "maxDuration": 60 },
+    "app/api/admin/sync-scores/route.ts": { "maxDuration": 60 },
+    "app/api/admin/recalculate/route.ts": { "maxDuration": 60 },
+    "app/api/cron/sync-live-scores/route.ts": { "maxDuration": 60 }
+  }
 }

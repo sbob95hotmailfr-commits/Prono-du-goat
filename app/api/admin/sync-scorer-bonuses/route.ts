@@ -89,8 +89,10 @@ export async function POST(req: NextRequest) {
   );
 
   let matchesProcessed = 0;
+  let predictionsUpdated = 0;
   let bonusesUpdated = 0;
   const skipped: string[] = [];
+  const unmappedScorers: string[] = [];
 
   for (const m of finishedMatches) {
     // Trouver le match correspondant dans l'API
@@ -115,17 +117,32 @@ export async function POST(req: NextRequest) {
       .map((id) => apiToDb.get(id))
       .filter((id): id is string => Boolean(id));
 
-    // Sauvegarder les buteurs réels dans match_scorers
+    // Tracer les buteurs non mappés pour diagnostic
+    goals.forEach((g: any) => {
+      if (g.scorer?.id && !apiToDb.get(Number(g.scorer.id))) {
+        unmappedScorers.push(`${g.scorer.name ?? g.scorer.id} (${m.home_team} vs ${m.away_team})`);
+      }
+    });
+
+    // Sauvegarder les buteurs réels dans match_scorers en parallèle
     await adminSupabase.from("match_scorers").delete().eq("match_id", m.id);
-    for (const playerId of realScorerDbIds) {
-      await adminSupabase.from("match_scorers").insert({ match_id: m.id, player_id: playerId });
+    if (realScorerDbIds.length > 0) {
+      await Promise.all(
+        realScorerDbIds.map((playerId) =>
+          adminSupabase.from("match_scorers").insert({ match_id: m.id, player_id: playerId })
+        )
+      );
     }
 
-    // Récupérer toutes les prédictions pour ce match
-    const { data: preds } = await adminSupabase
-      .from("predictions")
-      .select("id, home_score_pred, away_score_pred")
-      .eq("match_id", m.id);
+    // Récupérer toutes les prédictions + pronostics buteur en parallèle
+    const [{ data: preds }, { data: scorerPreds }] = await Promise.all([
+      adminSupabase.from("predictions")
+        .select("id, home_score_pred, away_score_pred")
+        .eq("match_id", m.id),
+      adminSupabase.from("scorer_predictions")
+        .select("prediction_id, player_id")
+        .not("prediction_id", "is", null),
+    ]);
 
     if (!preds?.length) {
       matchesProcessed++;
@@ -134,33 +151,33 @@ export async function POST(req: NextRequest) {
 
     const predIds = preds.map((p: any) => p.id);
 
-    // Récupérer les pronostics buteur
-    const { data: scorerPreds } = await adminSupabase
+    // Récupérer uniquement les scorer_predictions de ce match
+    const { data: matchScorerPreds } = await adminSupabase
       .from("scorer_predictions")
       .select("prediction_id, player_id")
       .in("prediction_id", predIds);
 
     const byPred: Record<string, string[]> = {};
-    for (const sp of scorerPreds ?? []) {
+    for (const sp of matchScorerPreds ?? []) {
       if (!byPred[sp.prediction_id]) byPred[sp.prediction_id] = [];
       if (sp.player_id) byPred[sp.prediction_id].push(sp.player_id);
     }
 
-    // Calculer et sauvegarder points = score + bonus buteur
-    for (const p of preds) {
+    // Calculer et sauvegarder points = score + bonus buteur en parallèle
+    await Promise.all(preds.map(async (p: any) => {
       const pts = calculatePoints(p.home_score_pred, p.away_score_pred, m.home_score, m.away_score);
       const predictedIds = byPred[p.id] ?? [];
       const bonus = realScorerDbIds.length > 0
         ? calculateScorerBonusMulti(predictedIds, realScorerDbIds)
         : 0;
-
       await adminSupabase.from("predictions")
         .update({ points_earned: pts + bonus, is_locked: true })
         .eq("id", p.id);
-    }
+      predictionsUpdated++;
+    }));
 
-    // Mettre à jour bonus_earned sur scorer_predictions
-    for (const predId of Object.keys(byPred)) {
+    // Mettre à jour bonus_earned sur scorer_predictions en parallèle
+    await Promise.all(Object.keys(byPred).map(async (predId) => {
       const bonus = realScorerDbIds.length > 0
         ? calculateScorerBonusMulti(byPred[predId], realScorerDbIds)
         : 0;
@@ -168,7 +185,7 @@ export async function POST(req: NextRequest) {
         .update({ bonus_earned: bonus })
         .eq("prediction_id", predId);
       bonusesUpdated++;
-    }
+    }));
 
     matchesProcessed++;
   }
@@ -176,8 +193,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     matches_processed: matchesProcessed,
+    predictions_updated: predictionsUpdated,
     bonuses_updated: bonusesUpdated,
     skipped_count: skipped.length,
     skipped,
+    unmapped_scorers_count: unmappedScorers.length,
+    unmapped_scorers: unmappedScorers,
   });
 }

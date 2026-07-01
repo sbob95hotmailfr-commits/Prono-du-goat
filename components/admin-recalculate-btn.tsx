@@ -8,6 +8,7 @@ export function AdminRecalculateBtn() {
   const [loading, setLoading] = useState(false);
   const [loadingScorers, setLoadingScorers] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [syncDetail, setSyncDetail] = useState<any>(null);
 
   async function handleClick() {
     if (!confirm("Recalculer les points pour TOUS les matchs terminés ?")) return;
@@ -37,7 +38,11 @@ export function AdminRecalculateBtn() {
     if (!res.ok) {
       setResult("❌ Erreur : " + (data.error ?? res.status));
     } else {
-      setResult(`⚽ ${data.matches_processed} matchs traités — ${data.bonuses_updated} bonus buteurs calculés${data.skipped_count > 0 ? ` (${data.skipped_count} matchs non trouvés dans l'API)` : ""}`);
+      let msg = `⚽ ${data.matches_processed} matchs traités — ${data.predictions_updated ?? data.bonuses_updated} pronos mis à jour`;
+      if (data.skipped_count > 0) msg += ` | ⚠️ ${data.skipped_count} matchs non trouvés dans l'API`;
+      if (data.unmapped_scorers_count > 0) msg += ` | ⚠️ ${data.unmapped_scorers_count} buteurs non mappés`;
+      setResult(msg);
+      setSyncDetail(data);
       setTimeout(() => router.refresh(), 800);
     }
     setLoadingScorers(false);
@@ -60,6 +65,19 @@ export function AdminRecalculateBtn() {
         {loadingScorers ? "Sync en cours…" : "⚽ Sync buteurs réels + bonus"}
       </button>
       {result && <p className="text-sm font-semibold">{result}</p>}
+      {syncDetail?.skipped?.length > 0 && (
+        <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded p-2 mt-1 w-full">
+          <p className="font-bold mb-1">Matchs non trouvés dans l'API :</p>
+          {syncDetail.skipped.map((s: string, i: number) => <p key={i}>• {s}</p>)}
+        </div>
+      )}
+      {syncDetail?.unmapped_scorers?.length > 0 && (
+        <div className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded p-2 mt-1 w-full">
+          <p className="font-bold mb-1">Buteurs non mappés (pas dans la base joueurs) :</p>
+          {syncDetail.unmapped_scorers.slice(0, 10).map((s: string, i: number) => <p key={i}>• {s}</p>)}
+          {syncDetail.unmapped_scorers.length > 10 && <p>…et {syncDetail.unmapped_scorers.length - 10} autres</p>}
+        </div>
+      )}
     </div>
   );
 }
