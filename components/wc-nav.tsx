@@ -6,7 +6,7 @@ interface WcNavProps {
   leagueName: string;
   code?: string;
   isAdmin?: boolean;
-  activeTab: "matches" | "classements" | "stats" | "equipes" | "tableau" | "badges" | "tournament-stats";
+  activeTab: "matches" | "classements" | "stats" | "equipes" | "tableau" | "badges" | "tournament-stats" | "admin";
   pendingCount?: number;
 }
 
@@ -19,7 +19,8 @@ export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab, pendingC
     { key: "tournament-stats", label: "Stats",    href: `/leagues/${leagueId}/tournament-stats`, badge: undefined },
     { key: "stats",            label: "Ma ligue", href: `/leagues/${leagueId}/stats`, badge: undefined },
     { key: "badges",      label: "🏅 Badges",    href: `/leagues/${leagueId}/badges`, badge: undefined },
-  ] as const;
+    ...(isAdmin ? [{ key: "admin" as const, label: "⚙️ Admin", href: `/leagues/${leagueId}/admin`, badge: undefined }] : []),
+  ];
 
   return (
     <div className="sticky top-0 z-50">

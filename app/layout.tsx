@@ -25,6 +25,12 @@ export const metadata: Metadata = {
   title: "Le Prono du GOAT",
   description: "Le concours de pronostics Coupe du Monde 2026",
   manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Prono GOAT",
+  },
+  themeColor: "#003DA5",
 };
 
 export default function RootLayout({

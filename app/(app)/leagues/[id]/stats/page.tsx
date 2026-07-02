@@ -4,6 +4,7 @@ import { redirect, notFound } from "next/navigation";
 import { WcNav } from "@/components/wc-nav";
 import { CopyCode } from "@/components/copy-code";
 import { DailySummarySection } from "@/components/daily-summary-section";
+import { AiTipsCard } from "@/components/ai-tips-card";
 import type { LeagueStanding } from "@/types/database";
 
 export const revalidate = 60;
@@ -175,6 +176,9 @@ export default async function StatsPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           )}
+
+          {/* Conseils IA personnalisés */}
+          <AiTipsCard leagueId={id} />
 
           {/* Code invitation */}
           <div className="rounded-xl p-4" style={{ background: "#1A2535", border: "1px solid rgba(255,255,255,0.07)" }}>

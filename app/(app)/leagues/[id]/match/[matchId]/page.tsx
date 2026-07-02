@@ -8,6 +8,7 @@ import { PredictionForm } from "@/components/prediction-form";
 import { ScorerForm } from "@/components/scorer-form";
 import { ConfettiClient } from "@/components/confetti-client";
 import { FlagImage } from "@/components/flag-image";
+import { AiMatchCard } from "@/components/ai-match-card";
 import type { Prediction } from "@/types/database";
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string; matchId: string }> }) {
@@ -55,6 +56,16 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
       .eq("prediction_id", prediction.id) as any;
     currentScorers = sp ?? [];
   }
+
+  // Charger l'analyse IA en cache (pré-match ou débrief)
+  const { data: aiAnalysis } = await adminSupabaseGlobal
+    .from("match_ai_analyses")
+    .select("type, content")
+    .eq("match_id", matchId)
+    .in("type", ["prematch", "debrief"]) as any;
+
+  const prematchAnalysis = (aiAnalysis ?? []).find((a: any) => a.type === "prematch")?.content ?? null;
+  const debriefAnalysis = (aiAnalysis ?? []).find((a: any) => a.type === "debrief")?.content ?? null;
 
   // Charger les pronostics de tous les membres une fois le match verrouillé
   let allPredictions: any[] = [];
@@ -218,6 +229,26 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             awayGoals={prediction.away_score_pred ?? 0}
             currentScorers={currentScorers}
             locked={locked ?? false}
+          />
+        )}
+
+        {/* Agent IA pré-match (avant le coup d'envoi) */}
+        {!locked && !finished && (
+          <AiMatchCard
+            matchId={matchId}
+            leagueId={id}
+            type="prematch"
+            cachedContent={prematchAnalysis}
+          />
+        )}
+
+        {/* Débrief IA post-match */}
+        {finished && (
+          <AiMatchCard
+            matchId={matchId}
+            leagueId={id}
+            type="debrief"
+            cachedContent={debriefAnalysis}
           />
         )}
 

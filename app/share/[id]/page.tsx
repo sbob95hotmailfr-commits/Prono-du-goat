@@ -1,8 +1,39 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createAdminClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 export const revalidate = 60;
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const { data: league } = await createAdminClient()
+    .from("leagues")
+    .select("name")
+    .eq("id", id)
+    .single() as any;
+
+  if (!league) return {};
+
+  return {
+    title: `${league.name} — Le Prono du GOAT`,
+    description: `Rejoins la ligue "${league.name}" et pronostique la Coupe du Monde 2026 !`,
+    openGraph: {
+      title: `${league.name} — Le Prono du GOAT`,
+      description: `Rejoins la ligue et pronostique la Coupe du Monde 2026 !`,
+      images: [`/share/${id}/opengraph-image`],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${league.name} — Le Prono du GOAT`,
+      description: `Rejoins la ligue et pronostique la Coupe du Monde 2026 !`,
+    },
+  };
+}
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 

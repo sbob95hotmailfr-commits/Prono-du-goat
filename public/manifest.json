@@ -1,0 +1,19 @@
+{
+  "name": "Le Prono du GOAT",
+  "short_name": "Prono GOAT",
+  "description": "Concours de pronostics Coupe du Monde 2026",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0D1525",
+  "theme_color": "#003DA5",
+  "orientation": "portrait-primary",
+  "categories": ["sports", "games"],
+  "icons": [
+    {
+      "src": "/ball.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
