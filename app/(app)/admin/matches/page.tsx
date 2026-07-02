@@ -64,9 +64,7 @@ export default async function AdminMatchesPage() {
                     {match.status}
                   </span>
                 </div>
-                {(match.home_team?.startsWith("Qualifié") || match.away_team?.startsWith("Qualifié")) && (
-                  <AdminTeamsForm matchId={match.id} homeTeam={match.home_team} awayTeam={match.away_team} />
-                )}
+                <AdminTeamsForm matchId={match.id} homeTeam={match.home_team} awayTeam={match.away_team} />
                 <AdminScoreForm
                   matchId={match.id}
                   homeFlag={match.home_flag ?? ""}
@@ -98,6 +96,12 @@ export default async function AdminMatchesPage() {
                     {match.home_score} – {match.away_score}
                   </span>
                 </div>
+                <details className="text-xs text-muted cursor-pointer mb-2">
+                  <summary className="hover:text-dark">Corriger les équipes</summary>
+                  <div className="mt-2">
+                    <AdminTeamsForm matchId={match.id} homeTeam={match.home_team} awayTeam={match.away_team} />
+                  </div>
+                </details>
                 <details className="text-xs text-muted cursor-pointer">
                   <summary className="hover:text-dark">Corriger le score</summary>
                   <div className="mt-2">
