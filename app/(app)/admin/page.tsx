@@ -116,8 +116,11 @@ export default async function AdminHubPage() {
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">{formatDate(m.kickoff_at)}</p>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(0,61,165,0.2)", color: "#60a5fa" }}>
-                    {m.status}
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{
+                    background: m.status === "live" ? "rgba(0,166,80,0.2)" : "rgba(0,61,165,0.2)",
+                    color: m.status === "live" ? "#00A650" : "#60a5fa"
+                  }}>
+                    {m.status === "live" ? "🔴 En cours" : m.status === "finished" ? "Terminé" : "À venir"}
                   </span>
                 </div>
               ))}
