@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 import { checkAndAwardBadges } from "@/lib/badges";
+import { syncPlayerStats } from "@/lib/sync-player-stats";
 
 // Traduction noms FR → anglais (football-data.org utilise des noms anglais)
 const FR_TO_EN: Record<string, string> = {
@@ -307,17 +308,24 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Sync stats joueurs (buteurs / passes D) — non bloquant
+  let statsResult: any = {};
+  try {
+    statsResult = await syncPlayerStats(API_KEY);
+  } catch (e: any) {
+    statsResult = { error: e?.message };
+  }
+
   return NextResponse.json({
     success: true,
     updated,
+    stats_updated: statsResult.updated ?? 0,
     debug: {
       pending_count: pending.length,
       fixtures_total: allFixtures.length,
       finished_count: done.length,
       live_count: inProgress.length,
-      fixtures_sample: allFixtures.slice(0, 3).map((f: any) =>
-        `${f.homeTeam?.name} vs ${f.awayTeam?.name} [${f.status}]`
-      ),
+      stats: statsResult,
     },
   });
 }
