@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
 
   const { data: pending } = await supabase
     .from("matches")
-    .select("id, home_team, away_team, kickoff_at, stage")
+    .select("id, home_team, away_team, home_flag, away_flag, kickoff_at, stage")
     .neq("status", "finished")
     .lt("kickoff_at", cutoff)
     .gt("kickoff_at", windowStart)
@@ -272,17 +272,17 @@ export async function GET(req: NextRequest) {
           .eq("stage", m.stage).order("kickoff_at", { ascending: true });
         const slot = (stageMatches ?? []).findIndex((sm: any) => sm.id === m.id) + 1;
         if (slot > 0) {
-          // score.winner = "HOME_TEAM" | "AWAY_TEAM" (gère les tirs au but automatiquement)
+          // score.winner gère les tirs au but automatiquement
           const apiWinner = fix.score?.winner;
-          const winner = apiWinner === "HOME_TEAM"
-            ? m.home_team
-            : apiWinner === "AWAY_TEAM"
-              ? m.away_team
-              : hs > as_ ? m.home_team : m.away_team; // fallback si winner absent
+          const isHomeWin = apiWinner === "HOME_TEAM" || (!apiWinner && hs > as_);
+          const winner = isHomeWin ? m.home_team : m.away_team;
+          const winnerFlag = isHomeWin ? (m as any).home_flag : (m as any).away_flag;
           const placeholder = `Vainqueur ${prefix}${slot}`;
-          await supabase.from("matches").update({ home_team: winner })
+          await supabase.from("matches")
+            .update({ home_team: winner, home_flag: winnerFlag ?? "🏳️" })
             .eq("stage", nextStage).eq("home_team", placeholder);
-          await supabase.from("matches").update({ away_team: winner })
+          await supabase.from("matches")
+            .update({ away_team: winner, away_flag: winnerFlag ?? "🏳️" })
             .eq("stage", nextStage).eq("away_team", placeholder);
         }
       }
