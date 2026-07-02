@@ -1,18 +1,4 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/sync-live-scores",
-      "schedule": "0 18,21,0,3 * * *"
-    },
-    {
-      "path": "/api/cron/send-reminders",
-      "schedule": "30 15,18,21,0 * * *"
-    },
-    {
-      "path": "/api/cron/send-results",
-      "schedule": "0 19,22,1,4 * * *"
-    }
-  ],
   "functions": {
     "app/api/admin/sync-scorer-bonuses/route.ts": { "maxDuration": 60 },
     "app/api/admin/sync-scores/route.ts": { "maxDuration": 60 },
