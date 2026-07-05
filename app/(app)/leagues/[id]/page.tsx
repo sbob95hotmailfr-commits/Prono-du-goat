@@ -44,6 +44,12 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
     .order("total_points", { ascending: false }) as any;
   const standings = (standingsData ?? []) as LeagueStanding[];
 
+  // Points cumulés de l'IA (global, pas par ligue)
+  const { data: aiPreds } = await supabase
+    .from("ai_match_predictions").select("points_earned") as any;
+  const aiTotalPoints = (aiPreds ?? []).reduce((s: number, p: any) => s + (p.points_earned ?? 0), 0);
+  const aiMatchCount = (aiPreds ?? []).length;
+
   const { data: matchesRaw } = await supabase
     .from("matches").select("*")
     .order("kickoff_at", { ascending: true }) as any;
@@ -171,6 +177,32 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
+      {/* Bannière Phase Finale */}
+      <div className="max-w-5xl mx-auto px-4 pt-5">
+        <div className="rounded-xl overflow-hidden border border-yellow-500/30" style={{ background: "linear-gradient(135deg,#1a1200,#1f1800)" }}>
+          <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
+            <span className="text-base">🏆</span>
+            <p className="font-black text-sm tracking-wide uppercase" style={{ color: "#F5A623" }}>Bonus Phase Finale — Actifs</p>
+            <div className="flex items-center gap-3 ml-auto text-[11px] font-bold">
+              <a href={`/leagues/${id}/pronostic-final`} style={{ color: "#F5A623" }} className="underline underline-offset-2">🔮 Pronostic spécial →</a>
+              <a href={`/leagues/${id}/phase-finale`} className="text-gray-400 underline underline-offset-2">Règles</a>
+            </div>
+          </div>
+          <div className="px-4 pb-3 flex flex-wrap gap-4">
+            {[
+              { icon: "⚡", label: "Multiplicateur ×2 pour les derniers" },
+              { icon: "⚽", label: "Buteurs multipliés" },
+              { icon: "🎯", label: "Bonus pronostic courageux +5/+8" },
+              { icon: "🔮", label: "Pronostic demi-finalistes & vainqueur" },
+            ].map((b, i) => (
+              <span key={i} className="flex items-center gap-1.5 text-[11px] text-gray-300">
+                <span>{b.icon}</span>{b.label}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Contenu principal */}
       <div className="max-w-5xl mx-auto px-4 py-6 flex flex-col lg:flex-row gap-6">
 
@@ -294,23 +326,51 @@ export default async function LeaguePage({ params }: { params: Promise<{ id: str
               </div>
             ) : (
               <div>
-                {standings.map((s, i) => (
-                  <div key={(s as any).user_id}
-                    className={`flex items-center gap-3 px-4 py-3 border-b border-white/5 ${(s as any).user_id === user.id ? "bg-[#003DA5]/10" : ""}`}>
-                    <span className={`w-5 text-center text-sm font-bold ${medalColors[i] ?? "text-gray-600"}`}>
-                      {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : <span className="text-gray-500 text-xs">{i + 1}</span>}
-                    </span>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                      style={{ background: (s as any).user_id === user.id ? "#003DA5" : "#2A3548" }}>
-                      {((s as any).username?.[0] ?? "?").toUpperCase()}
-                    </div>
-                    <span className="flex-1 text-sm font-semibold text-gray-200 truncate">{(s as any).username}</span>
-                    <div className="text-right shrink-0">
-                      <span className="font-mono font-black text-lg" style={{ color: "#F5A623" }}>{(s as any).total_points}</span>
-                      <span className="text-gray-600 text-xs ml-0.5">pts</span>
-                    </div>
-                  </div>
-                ))}
+                {(() => {
+                  // Insérer l'IA à sa position dans le classement
+                  const allEntries = [
+                    ...standings.map((s: any) => ({ type: "human", data: s, pts: s.total_points ?? 0 })),
+                    { type: "ai", data: null, pts: aiTotalPoints },
+                  ].sort((a, b) => b.pts - a.pts);
+
+                  return allEntries.map((entry, i) => {
+                    if (entry.type === "ai") return (
+                      <div key="goat-ia" className="flex items-center gap-3 px-4 py-3 border-b border-white/5"
+                        style={{ background: "rgba(245,166,35,0.04)" }}>
+                        <span className={`w-5 text-center text-sm font-bold ${medalColors[i] ?? "text-gray-600"}`}>
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : <span className="text-gray-500 text-xs">{i + 1}</span>}
+                        </span>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0"
+                          style={{ background: "rgba(245,166,35,0.15)", border: "1px solid rgba(245,166,35,0.3)" }}>
+                          🤖
+                        </div>
+                        <span className="flex-1 text-sm font-semibold truncate" style={{ color: "#F5A623" }}>GOAT IA</span>
+                        <div className="text-right shrink-0">
+                          <span className="font-mono font-black text-lg" style={{ color: "#F5A623" }}>{aiTotalPoints}</span>
+                          <span className="text-gray-600 text-xs ml-0.5">pts</span>
+                        </div>
+                      </div>
+                    );
+                    const s = entry.data as any;
+                    return (
+                      <div key={s.user_id}
+                        className={`flex items-center gap-3 px-4 py-3 border-b border-white/5 ${s.user_id === user.id ? "bg-[#003DA5]/10" : ""}`}>
+                        <span className={`w-5 text-center text-sm font-bold ${medalColors[i] ?? "text-gray-600"}`}>
+                          {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : <span className="text-gray-500 text-xs">{i + 1}</span>}
+                        </span>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
+                          style={{ background: s.user_id === user.id ? "#003DA5" : "#2A3548" }}>
+                          {(s.username?.[0] ?? "?").toUpperCase()}
+                        </div>
+                        <span className="flex-1 text-sm font-semibold text-gray-200 truncate">{s.username}</span>
+                        <div className="text-right shrink-0">
+                          <span className="font-mono font-black text-lg" style={{ color: "#F5A623" }}>{s.total_points}</span>
+                          <span className="text-gray-600 text-xs ml-0.5">pts</span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
 

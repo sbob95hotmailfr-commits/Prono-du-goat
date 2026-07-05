@@ -67,6 +67,25 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
   const prematchAnalysis = (aiAnalysis ?? []).find((a: any) => a.type === "prematch")?.content ?? null;
   const debriefAnalysis = (aiAnalysis ?? []).find((a: any) => a.type === "debrief")?.content ?? null;
 
+  // Pronostic IA (visible après verrouillage)
+  let aiPrediction: any = null;
+  let aiScorerNames: string[] = [];
+  if (locked || finished) {
+    const { data: aiPred } = await adminSupabaseGlobal
+      .from("ai_match_predictions")
+      .select("home_score_pred, away_score_pred, points_earned, reasoning")
+      .eq("match_id", matchId).single() as any;
+    aiPrediction = aiPred ?? null;
+
+    if (aiPred) {
+      const { data: aiScorers } = await adminSupabaseGlobal
+        .from("ai_scorer_predictions")
+        .select("player_id, players(name)")
+        .eq("match_id", matchId) as any;
+      aiScorerNames = (aiScorers ?? []).map((s: any) => s.players?.name).filter(Boolean);
+    }
+  }
+
   // Charger les pronostics de tous les membres une fois le match verrouillé
   let allPredictions: any[] = [];
   if (locked || finished) {
@@ -115,7 +134,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 <div className="flex justify-center mb-3">
                   <FlagImage team={m.home_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover border border-white/10" />
                 </div>
-                <p className="font-bold text-white text-sm">{m.home_team}</p>
+                <p className={`font-bold text-sm ${m.penalty_winner === "home" && finished ? "text-[#00A650]" : "text-white"}`}>
+                  {m.penalty_winner === "home" && finished && <span className="mr-1">↑</span>}
+                  {m.home_team}
+                </p>
               </div>
 
               {finished && m.home_score != null ? (
@@ -125,7 +147,9 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                       {m.home_score} – {m.away_score}
                     </p>
                   </div>
-                  <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-wider">Score final</p>
+                  <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-wider">
+                    {m.penalty_winner ? "Score final · t.a.b" : "Score final"}
+                  </p>
                 </div>
               ) : (
                 <div className="text-center px-4">
@@ -139,7 +163,10 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
                 <div className="flex justify-center mb-3">
                   <FlagImage team={m.away_team} size="lg" className="rounded-xl shadow-md w-16 h-12 object-cover border border-white/10" />
                 </div>
-                <p className="font-bold text-white text-sm">{m.away_team}</p>
+                <p className={`font-bold text-sm ${m.penalty_winner === "away" && finished ? "text-[#00A650]" : "text-white"}`}>
+                  {m.away_team}
+                  {m.penalty_winner === "away" && finished && <span className="ml-1">↑</span>}
+                </p>
               </div>
             </div>
           </div>
@@ -250,6 +277,40 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             type="debrief"
             cachedContent={debriefAnalysis}
           />
+        )}
+
+        {/* Pronostic GOAT IA — visible après verrouillage */}
+        {(locked || finished) && aiPrediction && (
+          <div className="rounded-2xl overflow-hidden" style={{ background: "#1A2535", border: "1px solid rgba(245,166,35,0.2)" }}>
+            <div className="px-4 py-3 flex items-center gap-2" style={{ background: "#0D1B2E" }}>
+              <span className="text-base">🤖</span>
+              <span className="font-bold text-sm" style={{ color: "#F5A623" }}>GOAT IA</span>
+              <span className="text-xs text-gray-500 ml-auto">Pronostic IA</span>
+            </div>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="font-mono font-black text-2xl text-white">
+                  {aiPrediction.home_score_pred} – {aiPrediction.away_score_pred}
+                </span>
+                {finished && aiPrediction.points_earned != null && (
+                  <span className="text-sm font-bold px-3 py-1 rounded-full" style={{
+                    background: aiPrediction.points_earned >= 3 ? "rgba(245,166,35,0.15)" : aiPrediction.points_earned > 0 ? "rgba(0,166,80,0.15)" : "rgba(255,255,255,0.06)",
+                    color: aiPrediction.points_earned >= 3 ? "#F5A623" : aiPrediction.points_earned > 0 ? "#00A650" : "#6b7280",
+                  }}>
+                    {aiPrediction.points_earned > 0 ? `+${aiPrediction.points_earned} pts` : "0 pt"}
+                  </span>
+                )}
+              </div>
+              {aiScorerNames.length > 0 && (
+                <p className="text-xs text-gray-400 mb-2">
+                  ⚽ Buteurs prédits : {aiScorerNames.join(", ")}
+                </p>
+              )}
+              {aiPrediction.reasoning && (
+                <p className="text-xs text-gray-500 italic">{aiPrediction.reasoning}</p>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Pronostics de toute la ligue — visibles après verrouillage */}

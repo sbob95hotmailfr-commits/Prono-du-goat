@@ -17,6 +17,7 @@ interface MatchCardProps {
     stage: string;
     status: "upcoming" | "live" | "finished";
     minute?: number | null;
+    penalty_winner?: "home" | "away" | null;
   };
   leagueId?: string;
   locked?: boolean;
@@ -104,15 +105,25 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
           {/* Équipes + score */}
           <div className="flex items-center gap-2">
             <div className="flex-1 flex items-center justify-end gap-2">
-              <span className="font-semibold text-sm text-white text-right leading-tight">{match.home_team}</span>
+              {match.penalty_winner === "home" && finished && (
+                <span className="text-[#00A650] text-sm font-bold leading-none">↑</span>
+              )}
+              <span className={`font-semibold text-sm text-right leading-tight ${match.penalty_winner === "home" && finished ? "text-[#00A650]" : "text-white"}`}>
+                {match.home_team}
+              </span>
               <Flag team={match.home_team} size="md" />
             </div>
 
             <div className="shrink-0 min-w-[60px] text-center">
               {showResult ? (
-                <span className="font-bold text-xl text-white tracking-wide">
-                  {match.home_score} – {match.away_score}
-                </span>
+                <div className="flex flex-col items-center">
+                  <span className="font-bold text-xl text-white tracking-wide">
+                    {match.home_score} – {match.away_score}
+                  </span>
+                  {match.penalty_winner && finished && (
+                    <span className="text-[9px] text-gray-400 uppercase tracking-widest mt-0.5">t.a.b</span>
+                  )}
+                </div>
               ) : (
                 <span className="font-bold text-xl text-white/20">–</span>
               )}
@@ -120,7 +131,12 @@ export function MatchCard({ match, leagueId, locked, showScore, predicted, href 
 
             <div className="flex-1 flex items-center gap-2">
               <Flag team={match.away_team} size="md" />
-              <span className="font-semibold text-sm text-white leading-tight">{match.away_team}</span>
+              <span className={`font-semibold text-sm leading-tight ${match.penalty_winner === "away" && finished ? "text-[#00A650]" : "text-white"}`}>
+                {match.away_team}
+              </span>
+              {match.penalty_winner === "away" && finished && (
+                <span className="text-[#00A650] text-sm font-bold leading-none">↑</span>
+              )}
             </div>
           </div>
 
