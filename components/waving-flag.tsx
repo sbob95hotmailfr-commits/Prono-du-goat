@@ -23,41 +23,36 @@ export function WavingFlag({ src, alt, width = 130, height = 88 }: WavingFlagPro
 
     let animId: number;
     let startTime: number | null = null;
-    let offscreen: HTMLCanvasElement | null = null;
-
-    function buildOffscreen() {
-      offscreen = document.createElement("canvas");
-      offscreen.width = width;
-      offscreen.height = height;
-      offscreen.getContext("2d")!.drawImage(img, 0, 0, width, height);
-    }
 
     function draw(timestamp: number) {
       if (!startTime) startTime = timestamp;
       const time = (timestamp - startTime) / 1000;
+
       ctx!.clearRect(0, 0, width, height);
 
-      if (offscreen) {
+      if (img.complete && img.naturalWidth > 0) {
         for (let x = 0; x < width; x++) {
           const progress = x / width;
-          const amplitude = progress * progress * 12;
+          const amplitude = progress * progress * 10;
           const yOffset = Math.sin(progress * 3 * Math.PI - time * 2.5) * amplitude;
-          ctx!.drawImage(offscreen, x, 0, 1, height, x, yOffset, 1, height);
+
+          ctx!.drawImage(
+            img,
+            (x / width) * img.naturalWidth, 0,
+            img.naturalWidth / width, img.naturalHeight,
+            x, yOffset,
+            1, height
+          );
         }
       }
 
       animId = requestAnimationFrame(draw);
     }
 
-    function start() {
-      buildOffscreen();
-      animId = requestAnimationFrame(draw);
-    }
-
     if (img.complete && img.naturalWidth > 0) {
-      start();
+      animId = requestAnimationFrame(draw);
     } else {
-      img.onload = start;
+      img.onload = () => { animId = requestAnimationFrame(draw); };
     }
 
     return () => cancelAnimationFrame(animId);
