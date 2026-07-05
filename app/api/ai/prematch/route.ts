@@ -54,20 +54,24 @@ export async function POST(req: NextRequest) {
     hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris",
   }).format(new Date(match.kickoff_at));
 
-  const prompt = `Tu es un consultant sportif fun et expert de la Coupe du Monde 2026.
+  const prompt = `Tu es un consultant sportif passionné et expert de la Coupe du Monde 2026.
 
 Match : ${match.home_flag ?? ""} ${match.home_team} vs ${match.away_team} ${match.away_flag ?? ""}
 Phase : ${match.stage}
 Coup d'envoi : ${kickoffDate}
 ${scorers.length > 0 ? `Meilleurs buteurs du tournoi dans ces équipes : ${scorers.join(", ")}` : ""}
 
-Génère une analyse pré-match courte et engageante (4-5 phrases max) qui :
-1. Présente l'enjeu du match
-2. Donne 2 facteurs clés à surveiller
-3. Propose un pronostic de score précis avec une courte justification
+Génère une analyse pré-match courte et engageante (4-5 phrases maximum) qui :
+1. Présente l'enjeu du match en une phrase
+2. Cite 2 facteurs clés à surveiller
+3. Propose un pronostic de score précis avec une justification courte
 
-Ton : direct, fun, comme un ami qui s'y connaît en foot. Parle en français.
-Termine toujours par : "Mon pronostic : X-Y"`;
+Règles strictes :
+- N'écris PAS de titre, pas de ligne d'introduction avec les noms des équipes, commence directement par l'analyse
+- N'utilise pas de markdown (pas de #, **, __, etc.)
+- Écris en français correct, sans fautes d'orthographe ni de grammaire
+- Ton direct et enthousiaste, comme un ami qui s'y connaît en foot
+- Termine TOUJOURS par : "Mon pronostic : X-Y"`;
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface AiMatchCardProps {
   matchId: string;
@@ -11,6 +11,11 @@ interface AiMatchCardProps {
 
 export function AiMatchCard({ matchId, leagueId, type, cachedContent }: AiMatchCardProps) {
   const [content, setContent] = useState<string | null>(cachedContent ?? null);
+
+  // Resync si le matchId change sans démontage du composant (navigation client-side)
+  useEffect(() => {
+    setContent(cachedContent ?? null);
+  }, [matchId, cachedContent]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
