@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { syncPlayerStats } from "@/lib/sync-player-stats";
+import { generateAiPrediction, scoreAiPredictions } from "@/lib/ai-predictor";
+import { sendEmbed, buildResultEmbed, buildReminderEmbed, GUILD_ID } from "@/lib/discord";
+import { createAdminClient as adminClient } from "@/lib/supabase/server";
+import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions } from "@/lib/phase-finale";
 
 // Traduction noms FR → anglais (football-data.org utilise des noms anglais)
 const FR_TO_EN: Record<string, string> = {
@@ -113,11 +117,22 @@ export async function GET(req: NextRequest) {
 
   const { data: pending } = await supabase
     .from("matches")
-    .select("id, home_team, away_team, home_flag, away_flag, kickoff_at, stage")
+    .select("id, home_team, away_team, home_flag, away_flag, kickoff_at, stage, api_match_id")
     .neq("status", "finished")
     .lt("kickoff_at", cutoff)
     .gt("kickoff_at", windowStart)
     .order("kickoff_at");
+
+  // Générer les pronostics IA pour les matchs à venir dans les 24h (non bloquant)
+  const upcoming24h = await supabase
+    .from("matches")
+    .select("id")
+    .eq("status", "upcoming")
+    .gt("kickoff_at", new Date().toISOString())
+    .lt("kickoff_at", new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
+  for (const m of upcoming24h.data ?? []) {
+    generateAiPrediction(m.id).catch(() => {});
+  }
 
   if (!pending?.length) return NextResponse.json({ success: true, updated: 0, debug: "no_pending_matches" });
 
@@ -156,19 +171,41 @@ export async function GET(req: NextRequest) {
 
   let updated = 0;
 
+  // Indexer les fixtures API par ID pour lookup O(1)
+  const fixtureById = new Map<number, any>(allFixtures.map((f: any) => [f.id, f]));
+
   for (const m of pending) {
-    // Chercher dans les matchs terminés
-    const fix = done.find((f: any) =>
-      teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
-      teamsMatch(m.away_team, f.awayTeam?.name ?? "")
-    );
+    // Chercher dans les matchs terminés — ID exact en priorité, fuzzy en fallback
+    const fix = (() => {
+      if ((m as any).api_match_id) {
+        const byId = fixtureById.get(Number((m as any).api_match_id));
+        return byId && byId.status === "FINISHED" ? byId : undefined;
+      }
+      // Fallback fuzzy : filtrer d'abord par fenêtre de ±36h puis par noms
+      const kickoff = new Date(m.kickoff_at).getTime();
+      return done.find((f: any) => {
+        const diffH = Math.abs(new Date(f.utcDate).getTime() - kickoff) / 3600000;
+        return diffH < 36 &&
+          teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
+          teamsMatch(m.away_team, f.awayTeam?.name ?? "");
+      });
+    })();
 
     if (fix) {
+      // Score 90 min uniquement (jamais ET ni penalties)
       const hs = fix.score?.fullTime?.home ?? 0;
       const as_ = fix.score?.fullTime?.away ?? 0;
 
+      // Sauvegarder l'api_match_id pour les prochains appels (matching parfait)
+      const updatePayload: any = { home_score: hs, away_score: as_, status: "finished" };
+      if (!(m as any).api_match_id && fix.id) updatePayload.api_match_id = fix.id;
+      // Stocker le vainqueur TAB si le match s'est joué aux tirs au but
+      if (fix.score?.penalties) {
+        updatePayload.penalty_winner = fix.score.winner === "HOME_TEAM" ? "home" : "away";
+      }
+
       await supabase.from("matches")
-        .update({ home_score: hs, away_score: as_, status: "finished" })
+        .update(updatePayload)
         .eq("id", m.id);
 
       const { data: preds } = await supabase.from("predictions")
@@ -227,19 +264,41 @@ export async function GET(req: NextRequest) {
           .select("id, home_score_pred, away_score_pred, user_id, league_id")
           .in("id", predIds);
 
+        // Phase finale : snapshot des rangs avant scoring (pour multiplicateur)
+        const knockoutBonus = isKnockoutBonus(m.stage ?? "");
+        const leagueIds = [...new Set((predsFull ?? []).map((p: any) => p.league_id).filter(Boolean))];
+        const rankSnapshot = knockoutBonus
+          ? await getRankSnapshot(leagueIds, supabase)
+          : new Map<string, number>();
+
         await Promise.all((predsFull ?? preds).map(async (p: any) => {
           const pts = calculatePoints(p.home_score_pred, p.away_score_pred, hs, as_);
           const predictedIds = byPred[p.id] ?? [];
           const bonus = realScorerDbIds.length > 0
             ? calculateScorerBonusMulti(predictedIds, realScorerDbIds)
             : 0;
+
+          let total = pts + bonus;
+
+          // Appliquer le multiplicateur selon la position dans la ligue
+          if (knockoutBonus && p.user_id && p.league_id) {
+            const rank = rankSnapshot.get(`${p.league_id}:${p.user_id}`) ?? 1;
+            const mult = getMultiplier(rank);
+            total = Math.round(total * mult * 10) / 10;
+          }
+
           await supabase.from("predictions")
-            .update({ points_earned: pts + bonus, is_locked: true })
+            .update({ points_earned: total, is_locked: true })
             .eq("id", p.id);
           if (p.user_id && p.league_id) {
             await checkAndAwardBadges(p.user_id, p.league_id);
           }
         }));
+
+        // Bonus courageux (après scoring normal)
+        if (knockoutBonus) {
+          applyCourageuxBonus(m.id, hs, as_, supabase).catch(() => {});
+        }
 
         // Sauvegarder bonus_earned sur scorer_predictions si on a les buteurs réels
         if (realScorerDbIds.length > 0) {
@@ -261,9 +320,9 @@ export async function GET(req: NextRequest) {
       };
       const PLACEHOLDER_PREFIX: Record<string, string> = {
         "Seizièmes de finale": "HF",
-        "Huitièmes de finale": "HF",
-        "Quarts de finale": "QF",
-        "Demi-finales": "DF",
+        "Huitièmes de finale": "QF",
+        "Quarts de finale": "DF",
+        "Demi-finales": "F",
       };
       if (m.stage && NEXT_STAGE[m.stage]) {
         const nextStage = NEXT_STAGE[m.stage];
@@ -288,21 +347,69 @@ export async function GET(req: NextRequest) {
         }
       }
 
+      // Scorer les pronostics IA pour ce match
+      scoreAiPredictions(m.id, hs, as_, realScorerDbIds).catch(() => {});
+
+      // Scorer le pronostic spécial (Bonus 4)
+      if (isKnockoutBonus(m.stage ?? "")) {
+        const apiWinner = fix.score?.winner;
+        const isHomeWin = apiWinner === "HOME_TEAM" || (!apiWinner && hs > as_);
+        const advancingTeam = isHomeWin ? m.home_team : m.away_team;
+        scoreTournamentPredictions(m.stage, advancingTeam, supabase).catch(() => {});
+      }
+
+      // Notifier Discord (non bloquant)
+      if (process.env.DISCORD_BOT_TOKEN && process.env.DISCORD_RESULTS_CHANNEL_ID) {
+        (async () => {
+          try {
+            // Top pronostics pour l'embed
+            const { data: topPreds } = await supabase
+              .from("predictions")
+              .select("home_score_pred, away_score_pred, points_earned, user_id")
+              .eq("match_id", m.id)
+              .order("points_earned", { ascending: false })
+              .limit(5);
+            const userIds = (topPreds ?? []).map((p: any) => p.user_id);
+            let withNames: any[] = topPreds ?? [];
+            if (userIds.length) {
+              const { data: profiles } = await supabase.from("profiles").select("id, username").in("id", userIds);
+              const pm = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p.username]));
+              withNames = (topPreds ?? []).map((p: any) => ({ ...p, username: pm[p.user_id] ?? "?" }));
+            }
+            await sendEmbed(
+              process.env.DISCORD_RESULTS_CHANNEL_ID!,
+              buildResultEmbed({ ...m, home_score: hs, away_score: as_ }, withNames)
+            );
+          } catch {}
+        })();
+      }
+
       updated++;
       continue;
     }
 
-    // Chercher dans les matchs en cours
-    const liveFix = inProgress.find((f: any) =>
-      teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
-      teamsMatch(m.away_team, f.awayTeam?.name ?? "")
-    );
+    // Chercher dans les matchs en cours — ID exact en priorité, fuzzy en fallback
+    const liveFix = (() => {
+      if ((m as any).api_match_id) {
+        const byId = fixtureById.get(Number((m as any).api_match_id));
+        return byId && ["IN_PLAY","PAUSED","HALFTIME"].includes(byId.status) ? byId : undefined;
+      }
+      const kickoff = new Date(m.kickoff_at).getTime();
+      return inProgress.find((f: any) => {
+        const diffH = Math.abs(new Date(f.utcDate).getTime() - kickoff) / 3600000;
+        return diffH < 36 &&
+          teamsMatch(m.home_team, f.homeTeam?.name ?? "") &&
+          teamsMatch(m.away_team, f.awayTeam?.name ?? "");
+      });
+    })();
 
     if (liveFix) {
       const hs = liveFix.score?.fullTime?.home ?? 0;
       const as_ = liveFix.score?.fullTime?.away ?? 0;
+      const livePayload: any = { home_score: hs, away_score: as_, status: "live" };
+      if (!(m as any).api_match_id && liveFix.id) livePayload.api_match_id = liveFix.id;
       await supabase.from("matches")
-        .update({ home_score: hs, away_score: as_, status: "live" })
+        .update(livePayload)
         .eq("id", m.id);
       updated++;
     }

@@ -49,8 +49,14 @@ export const FLAG_CODES: Record<string, string> = {
   "Panama": "pa",
 };
 
-export function getFlagUrl(teamName: string, size: "sm" | "md" | "lg" = "md"): string {
-  const code = FLAG_CODES[teamName];
+const normalize = (s: string) => s.normalize("NFC").toLowerCase().trim();
+const FLAG_CODES_NORMALIZED = Object.fromEntries(
+  Object.entries(FLAG_CODES).map(([k, v]) => [normalize(k), v])
+);
+
+export function getFlagUrl(teamName: string, _size: "sm" | "md" | "lg" = "md"): string {
+  const code = FLAG_CODES[teamName] ?? FLAG_CODES_NORMALIZED[normalize(teamName)];
   if (!code) return "";
-  return `https://flagcdn.com/${code}.svg`;
+  // flag-icons : tous les SVG normalisés au même ratio 4:3 → taille identique pour tous les pays
+  return `https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/flags/4x3/${code}.svg`;
 }
