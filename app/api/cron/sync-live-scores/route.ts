@@ -423,9 +423,77 @@ export async function GET(req: NextRequest) {
     statsResult = { error: e?.message };
   }
 
+  // Passe de propagation bracket idempotente — s'exécute à chaque cron run
+  // Garantit que TOUS les matchs knockout terminés ont leur vainqueur dans le tour suivant,
+  // même si le match était déjà "finished" avant ce cron run.
+  const KNOCKOUT_STAGES_ORDER = [
+    "Seizièmes de finale",
+    "Huitièmes de finale",
+    "Quarts de finale",
+    "Demi-finales",
+  ] as const;
+  const BRACKET_NEXT_STAGE: Record<string, string> = {
+    "Seizièmes de finale": "Huitièmes de finale",
+    "Huitièmes de finale": "Quarts de finale",
+    "Quarts de finale": "Demi-finales",
+    "Demi-finales": "Finale",
+  };
+  const BRACKET_PREFIX: Record<string, string> = {
+    "Seizièmes de finale": "HF",
+    "Huitièmes de finale": "QF",
+    "Quarts de finale": "DF",
+    "Demi-finales": "F",
+  };
+
+  let propagated = 0;
+  for (const stage of KNOCKOUT_STAGES_ORDER) {
+    const nextStage = BRACKET_NEXT_STAGE[stage];
+    const prefix = BRACKET_PREFIX[stage];
+
+    const { data: finishedInStage } = await supabase
+      .from("matches")
+      .select("id, home_team, away_team, home_flag, away_flag, home_score, away_score, penalty_winner, kickoff_at")
+      .eq("stage", stage)
+      .eq("status", "finished")
+      .order("kickoff_at", { ascending: true });
+
+    if (!finishedInStage?.length) continue;
+
+    for (let i = 0; i < finishedInStage.length; i++) {
+      const fm = finishedInStage[i];
+      const slot = i + 1;
+      const placeholder = `Vainqueur ${prefix}${slot}`;
+
+      // Vérifier si le placeholder existe encore dans le tour suivant
+      const { count } = await supabase
+        .from("matches")
+        .select("id", { count: "exact", head: true })
+        .eq("stage", nextStage)
+        .or(`home_team.eq.${placeholder},away_team.eq.${placeholder}`);
+
+      if (!count) continue; // Déjà propagé
+
+      const isHomeWin =
+        (fm as any).penalty_winner === "home" ||
+        (!(fm as any).penalty_winner && ((fm as any).home_score ?? 0) > ((fm as any).away_score ?? 0));
+      const winner = isHomeWin ? fm.home_team : fm.away_team;
+      const winnerFlag = isHomeWin ? (fm as any).home_flag : (fm as any).away_flag;
+
+      await supabase.from("matches")
+        .update({ home_team: winner, home_flag: winnerFlag ?? "🏳️" })
+        .eq("stage", nextStage).eq("home_team", placeholder);
+      await supabase.from("matches")
+        .update({ away_team: winner, away_flag: winnerFlag ?? "🏳️" })
+        .eq("stage", nextStage).eq("away_team", placeholder);
+
+      propagated++;
+    }
+  }
+
   return NextResponse.json({
     success: true,
     updated,
+    propagated,
     stats_updated: statsResult.updated ?? 0,
     debug: {
       pending_count: pending.length,
