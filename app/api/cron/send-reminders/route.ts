@@ -1,4 +1,5 @@
 // @ts-nocheck
+export const dynamic = "force-dynamic";
 // Cron Job : envoie les emails de rappel 30 min avant chaque match
 // S'exécute toutes les 5 minutes — vérifie les matchs dans la fenêtre 25-35 min
 import { NextRequest, NextResponse } from "next/server";

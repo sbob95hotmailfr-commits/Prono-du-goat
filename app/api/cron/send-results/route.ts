@@ -1,4 +1,5 @@
 // @ts-nocheck
+export const dynamic = "force-dynamic";
 // Cron Job : envoie les emails de résultat après chaque match terminé
 // S'exécute toutes les heures — envoie une fois par match fini (via flag result_notified_at)
 import { NextRequest, NextResponse } from "next/server";
