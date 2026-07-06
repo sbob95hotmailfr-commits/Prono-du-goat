@@ -73,13 +73,18 @@ Règles strictes :
 - Ton direct et enthousiaste, comme un ami qui s'y connaît en foot
 - Termine TOUJOURS par : "Mon pronostic : X-Y"`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 400,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  let content: string;
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 400,
+      messages: [{ role: "user", content: prompt }],
+    });
+    content = message.content[0].type === "text" ? message.content[0].text : "";
+    if (!content) throw new Error("Réponse vide");
+  } catch (e: any) {
+    return NextResponse.json({ error: "Analyse impossible pour le moment, réessaie dans quelques secondes." }, { status: 500 });
+  }
 
   // Sauvegarde en cache
   await admin.from("match_ai_analyses").upsert(

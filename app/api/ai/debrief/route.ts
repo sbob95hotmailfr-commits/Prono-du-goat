@@ -78,13 +78,18 @@ Ton débrief doit :
 
 Ton fun, complice, comme dans un groupe WhatsApp de potes foot. En français.`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 400,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  let content: string;
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 400,
+      messages: [{ role: "user", content: prompt }],
+    });
+    content = message.content[0].type === "text" ? message.content[0].text : "";
+    if (!content) throw new Error("Réponse vide");
+  } catch (e: any) {
+    return NextResponse.json({ error: "Débrief impossible pour le moment, réessaie dans quelques secondes." }, { status: 500 });
+  }
 
   await admin.from("match_ai_analyses").upsert(
     { match_id: matchId, type: "debrief", content },
