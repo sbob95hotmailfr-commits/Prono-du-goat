@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { formatDate } from "@/lib/utils";
 import { AdminScoreForm } from "@/components/admin-score-form";
 import { AdminTeamsForm } from "@/components/admin-teams-form";
+import { BackButton } from "@/components/back-button";
 import { AdminRecalculateBtn } from "@/components/admin-recalculate-btn";
 import { AdminSyncBtn } from "@/components/admin-sync-btn";
 import type { Match } from "@/types/database";
@@ -33,7 +34,7 @@ export default async function AdminMatchesPage() {
     <div className="max-w-3xl mx-auto px-4 py-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-dark">Admin — Saisie des scores</h1>
-        <a href="/dashboard" className="text-sm text-muted hover:text-dark">← Dashboard</a>
+        <BackButton fallback="/dashboard" className="text-sm text-muted hover:text-dark" />
       </div>
 
       <p className="text-sm text-muted mb-4">

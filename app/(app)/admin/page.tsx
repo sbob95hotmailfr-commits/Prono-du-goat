@@ -3,6 +3,7 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { formatDate } from "@/lib/utils";
+import { BackButton } from "@/components/back-button";
 
 export const revalidate = 60;
 
@@ -67,9 +68,7 @@ export default async function AdminHubPage() {
             </p>
             <p className="font-bold text-white text-sm">Admin Dashboard</p>
           </div>
-          <Link href="/dashboard" className="text-xs text-gray-500 hover:text-white transition-colors">
-            ← Dashboard
-          </Link>
+          <BackButton fallback="/dashboard" className="text-xs text-gray-500 hover:text-white transition-colors" />
         </div>
       </div>
 

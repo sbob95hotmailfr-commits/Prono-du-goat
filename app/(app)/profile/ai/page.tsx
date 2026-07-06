@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { BackButton } from "@/components/back-button";
 
 export default function AiProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -150,9 +151,7 @@ export default function AiProfilePage() {
           </div>
         )}
 
-        <a href="/dashboard" className="block text-center text-xs text-gray-600 hover:text-gray-400 py-2 transition-colors">
-          ← Retour au tableau de bord
-        </a>
+        <BackButton fallback="/dashboard" className="block text-center text-xs text-gray-600 hover:text-gray-400 py-2 transition-colors" />
       </div>
     </div>
   );

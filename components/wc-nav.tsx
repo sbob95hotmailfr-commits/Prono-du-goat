@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { BackButton } from "@/components/back-button";
 
 interface WcNavProps {
   leagueId: string;
@@ -28,7 +29,7 @@ export function WcNav({ leagueId, leagueName, code, isAdmin, activeTab, pendingC
       <div className="bg-black px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/leagues" className="text-gray-400 hover:text-white text-sm transition-colors">←</Link>
+            <BackButton fallback="/leagues" />
             <div className="flex items-center gap-2">
               <Image
                 src="/wc2026.png"

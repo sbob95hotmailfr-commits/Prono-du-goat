@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 
 export default function PronosticFinalPage() {
   const { id: leagueId } = useParams<{ id: string }>();
@@ -85,7 +86,7 @@ export default function PronosticFinalPage() {
 
         {/* Header */}
         <div className="mb-2">
-          <Link href={`/leagues/${leagueId}`} className="text-xs text-gray-500 hover:text-gray-300">← Retour</Link>
+          <BackButton fallback={`/leagues/${leagueId}`} className="text-xs text-gray-500 hover:text-gray-300" />
         </div>
         <div className="text-center mb-6">
           <span className="text-4xl">🔮</span>

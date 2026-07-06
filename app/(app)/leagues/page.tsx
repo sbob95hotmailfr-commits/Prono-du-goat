@@ -2,6 +2,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { BackButton } from "@/components/back-button";
 
 export default async function LeaguesPage() {
   const supabase = await createClient();
@@ -20,9 +21,7 @@ export default async function LeaguesPage() {
       <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white px-4 py-5">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold">Mes ligues</h1>
-          <Link href="/dashboard" className="text-xs text-gray-400 hover:text-white border border-gray-600 rounded-lg px-3 py-1.5 transition-colors">
-            ← Dashboard
-          </Link>
+          <BackButton fallback="/dashboard" className="text-xs text-gray-400 hover:text-white border border-gray-600 rounded-lg px-3 py-1.5 transition-colors" />
         </div>
       </div>
 

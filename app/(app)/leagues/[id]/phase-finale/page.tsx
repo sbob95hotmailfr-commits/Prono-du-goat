@@ -2,6 +2,7 @@ import Link from "next/link";
 import { WcNav } from "@/components/wc-nav";
 import { createClient } from "@/lib/supabase/server";
 import { redirect, notFound } from "next/navigation";
+import { BackButton } from "@/components/back-button";
 
 export default async function PhaseFinaleePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -168,10 +169,8 @@ export default async function PhaseFinaleePage({ params }: { params: Promise<{ i
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-gray-600 text-xs mb-4">Ces bonus seront activés automatiquement au bon moment.</p>
-          <Link href={`/leagues/${id}`}
-            className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-full border border-white/10 text-white hover:border-white/20 transition-colors">
-            ← Retour à la ligue
-          </Link>
+          <BackButton fallback={`/leagues/${id}`}
+            className="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-full border border-white/10 text-white hover:border-white/20 transition-colors" />
         </div>
 
       </div>
