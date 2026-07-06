@@ -450,17 +450,20 @@ export async function GET(req: NextRequest) {
     const nextStage = BRACKET_NEXT_STAGE[stage];
     const prefix = BRACKET_PREFIX[stage];
 
-    const { data: finishedInStage } = await supabase
+    // Récupère TOUS les matchs du stage (pas seulement finished) pour que le slot
+    // soit basé sur la position absolue par kickoff — évite le décalage si un match
+    // du milieu n'est pas encore terminé
+    const { data: allInStage } = await supabase
       .from("matches")
-      .select("id, home_team, away_team, home_flag, away_flag, home_score, away_score, penalty_winner, kickoff_at")
+      .select("id, home_team, away_team, home_flag, away_flag, home_score, away_score, penalty_winner, status, kickoff_at")
       .eq("stage", stage)
-      .eq("status", "finished")
       .order("kickoff_at", { ascending: true });
 
-    if (!finishedInStage?.length) continue;
+    if (!allInStage?.length) continue;
 
-    for (let i = 0; i < finishedInStage.length; i++) {
-      const fm = finishedInStage[i];
+    for (let i = 0; i < allInStage.length; i++) {
+      const fm = allInStage[i];
+      if ((fm as any).status !== "finished") continue;
       const slot = i + 1;
       const placeholder = `Vainqueur ${prefix}${slot}`;
 
