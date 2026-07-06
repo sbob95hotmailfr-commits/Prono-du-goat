@@ -54,13 +54,15 @@ export async function POST(req: NextRequest) {
       .join(", ") ?? "Aucun";
 
   // Appel Claude API
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 400,
-    messages: [
-      {
-        role: "user",
-        content: `Tu es un commentateur sportif fun et passionné. Génère un résumé de journée pour une ligue de pronostics de la Coupe du Monde 2026.
+  let contentText: string;
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 400,
+      messages: [
+        {
+          role: "user",
+          content: `Tu es un commentateur sportif fun et passionné. Génère un résumé de journée pour une ligue de pronostics de la Coupe du Monde 2026.
 
 Résultats du jour : ${matchSummary}
 Meilleurs pronostiqueurs de la journée : ${topPlayers}
@@ -68,13 +70,14 @@ Meilleurs pronostiqueurs de la journée : ${topPlayers}
 Écris un résumé de 3-4 phrases en français, ton dynamique et fun.
 Mentionne les surprises du jour et félicite les meilleurs pronostiqueurs.
 Commence directement le texte, sans titre.`,
-      },
-    ],
-  });
-
-  const content = message.content[0];
-  if (content.type !== "text") {
-    return NextResponse.json({ error: "Erreur réponse IA" }, { status: 500 });
+        },
+      ],
+    });
+    const content = message.content[0];
+    if (content.type !== "text") throw new Error("Réponse IA inattendue");
+    contentText = content.text;
+  } catch {
+    return NextResponse.json({ error: "Résumé IA indisponible, réessaie dans quelques secondes." }, { status: 500 });
   }
 
   // Sauvegarde en base (upsert : remplace si déjà généré aujourd'hui)
@@ -82,10 +85,10 @@ Commence directement le texte, sans titre.`,
     {
       league_id: leagueId,
       summary_date: today,
-      content: content.text,
+      content: contentText,
     },
     { onConflict: "league_id,summary_date" }
   );
 
-  return NextResponse.json({ summary: content.text });
+  return NextResponse.json({ summary: contentText });
 }

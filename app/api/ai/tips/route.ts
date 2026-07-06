@@ -64,13 +64,18 @@ ${missedHighScoring > 2 ? `- A raté ${missedHighScoring} matchs à score élev�
 Donne 3 conseils personnalisés et actionnables pour améliorer ses pronostics. Sois direct, fun, et précis.
 Format : 3 conseils numérotés, 1-2 phrases chacun. Tutoiement. Français.`;
 
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 350,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const content = message.content[0].type === "text" ? message.content[0].text : "";
+  let content: string;
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 350,
+      messages: [{ role: "user", content: prompt }],
+    });
+    content = message.content[0].type === "text" ? message.content[0].text : "";
+    if (!content) throw new Error("Réponse vide");
+  } catch {
+    return NextResponse.json({ error: "Conseils IA indisponibles, réessaie dans quelques secondes." }, { status: 500 });
+  }
 
   return NextResponse.json({ content });
 }

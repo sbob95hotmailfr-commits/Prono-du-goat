@@ -1,4 +1,5 @@
 // @ts-nocheck
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
@@ -6,7 +7,6 @@ import { checkAndAwardBadges } from "@/lib/badges";
 import { syncPlayerStats } from "@/lib/sync-player-stats";
 import { generateAiPrediction, scoreAiPredictions } from "@/lib/ai-predictor";
 import { sendEmbed, buildResultEmbed, buildReminderEmbed, GUILD_ID } from "@/lib/discord";
-import { createAdminClient as adminClient } from "@/lib/supabase/server";
 import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions } from "@/lib/phase-finale";
 
 // Traduction noms FR → anglais (football-data.org utilise des noms anglais)

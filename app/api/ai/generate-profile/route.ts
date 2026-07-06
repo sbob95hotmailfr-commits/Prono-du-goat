@@ -53,13 +53,15 @@ export async function POST(req: NextRequest) {
       : "équilibré (proche de la réalité)";
 
   // Appel Claude API
-  const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 300,
-    messages: [
-      {
-        role: "user",
-        content: `Tu es un analyste sportif fun et bienveillant. Analyse ce pronostiqueur de la Coupe du Monde 2026 :
+  let message: any;
+  try {
+    message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 300,
+      messages: [
+        {
+          role: "user",
+          content: `Tu es un analyste sportif fun et bienveillant. Analyse ce pronostiqueur de la Coupe du Monde 2026 :
 - Pronostics analysés : ${total}
 - Taux de score exact : ${exactRate}%
 - Taux de bon vainqueur : ${winnerRate}%
@@ -70,19 +72,20 @@ Génère un profil avec :
 2. Une description de 2-3 phrases, ton léger et complice, qui parle directement à la personne (tu/toi)
 
 Réponds UNIQUEMENT en JSON valide, sans markdown : { "profile_type": "...", "description": "..." }`,
-      },
-    ],
-  });
+        },
+      ],
+    });
+  } catch {
+    return NextResponse.json({ error: "Analyse IA indisponible, réessaie dans quelques secondes." }, { status: 500 });
+  }
 
   try {
     const content = message.content[0];
     if (content.type !== "text") throw new Error("Réponse IA inattendue");
 
-    // Nettoie le JSON si Claude a ajouté des backticks
     const jsonText = content.text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     const profile = JSON.parse(jsonText) as { profile_type: string; description: string };
 
-    // Sauvegarde en base (upsert : met à jour si déjà existant)
     await supabase.from("ai_profiles").upsert(
       {
         user_id: userId,
@@ -96,9 +99,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown : { "profile_type": "...", "de
 
     return NextResponse.json(profile);
   } catch {
-    return NextResponse.json(
-      { error: "Erreur lors du parsing de la réponse IA" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Erreur lors du parsing de la réponse IA" }, { status: 500 });
   }
 }
