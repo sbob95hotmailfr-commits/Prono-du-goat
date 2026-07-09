@@ -44,16 +44,20 @@ function Flag({ team }: { team: string }) {
 
 function BracketMatch({ match, idx }: { match?: any; idx: number }) {
   const finished = match?.status === "finished";
+  const pen = match?.penalty_winner ?? null;
+  const homeWins = finished && (match.home_score > match.away_score || pen === "home");
+  const awayWins = finished && (match.away_score > match.home_score || pen === "away");
+  const isPen = finished && pen != null;
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm min-w-[160px] w-[160px]">
-      <div className="bg-gray-50 border-b border-gray-100 px-2 py-1">
+      <div className="bg-gray-50 border-b border-gray-100 px-2 py-1 flex items-center justify-between">
         <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">M°{(match?.match_num ?? idx + 73)}</span>
+        {isPen && <span className="text-[8px] text-purple-400 font-bold uppercase tracking-wide">TAB</span>}
       </div>
 
       {/* Équipe domicile */}
-      <div className={`flex items-center gap-2 px-2 py-1.5 border-b border-gray-50 ${
-        finished && match.home_score > match.away_score ? "bg-green-50" : ""
-      }`}>
+      <div className={`flex items-center gap-2 px-2 py-1.5 border-b border-gray-50 ${homeWins ? "bg-green-50" : ""}`}>
         {match?.home_team && match.home_team !== "À déterminer" ? (
           <>
             <Flag team={match.home_team} />
@@ -66,9 +70,7 @@ function BracketMatch({ match, idx }: { match?: any; idx: number }) {
       </div>
 
       {/* Équipe extérieure */}
-      <div className={`flex items-center gap-2 px-2 py-1.5 ${
-        finished && match.away_score > match.home_score ? "bg-green-50" : ""
-      }`}>
+      <div className={`flex items-center gap-2 px-2 py-1.5 ${awayWins ? "bg-green-50" : ""}`}>
         {match?.away_team && match.away_team !== "À déterminer" ? (
           <>
             <Flag team={match.away_team} />

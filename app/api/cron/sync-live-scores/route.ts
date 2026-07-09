@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
     .gt("kickoff_at", new Date().toISOString())
     .lt("kickoff_at", new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString());
   for (const m of upcoming24h.data ?? []) {
-    generateAiPrediction(m.id).catch(() => {});
+    generateAiPrediction(m.id).catch((e) => console.error("[AI predictor]", m.id, e?.message));
   }
 
   if (!pending?.length) return NextResponse.json({ success: true, updated: 0, debug: "no_pending_matches" });

@@ -123,7 +123,8 @@ Pour scorer_ids : choisis 1 à 3 IDs de joueurs parmi ceux listés ci-dessus qui
     });
 
     const raw = response.content[0].type === "text" ? response.content[0].text : "";
-    prediction = JSON.parse(raw.trim());
+    const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    prediction = JSON.parse(cleaned);
 
     // Valider les champs
     if (typeof prediction.home_score !== "number" || typeof prediction.away_score !== "number") {
