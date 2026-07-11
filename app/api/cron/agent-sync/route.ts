@@ -6,6 +6,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 import { checkAndAwardBadges } from "@/lib/badges";
+import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions } from "@/lib/phase-finale";
+import { scoreAiPredictions } from "@/lib/ai-predictor";
 
 // ─── Normalisation des noms ────────────────────────────────────────────────
 function norm(s: string): string {
@@ -34,7 +36,7 @@ function teamsMatch(dbName: string, agentName: string): boolean {
 async function findMatch(supabase: any, homeTeam: string, awayTeam: string) {
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, home_team, away_team, home_score, away_score, status, stage, kickoff_at, home_flag, away_flag");
+    .select("id, home_team, away_team, home_score, away_score, status, stage, kickoff_at, home_flag, away_flag, penalty_winner");
   return (matches ?? []).find(
     (m: any) => teamsMatch(m.home_team, homeTeam) && teamsMatch(m.away_team, awayTeam)
   ) ?? null;
@@ -153,6 +155,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Recalculer points + bonus pour toutes les prédictions du match ────
+    const knockoutBonus = isKnockoutBonus(match.stage ?? "");
+
     const { data: preds } = await supabase
       .from("predictions")
       .select("id, home_score_pred, away_score_pred, user_id, league_id")
@@ -172,16 +176,31 @@ export async function POST(req: NextRequest) {
         if (sp.player_id) byPred[sp.prediction_id].push(sp.player_id);
       }
 
+      // Snapshot des rangs avant scoring (pour multiplicateur phase finale)
+      const leagueIds = [...new Set(preds.map((p: any) => p.league_id).filter(Boolean))];
+      const rankSnapshot = knockoutBonus
+        ? await getRankSnapshot(leagueIds, supabase)
+        : new Map<string, number>();
+
       for (const p of preds) {
         const pts = calculatePoints(p.home_score_pred, p.away_score_pred, home_score, away_score);
         const predictedIds = byPred[p.id] ?? [];
-        const bonus = scorerIds.length > 0
+        const scorerBonus = scorerIds.length > 0
           ? calculateScorerBonusMulti(predictedIds, scorerIds)
           : 0;
 
+        let total = pts + scorerBonus;
+
+        // Multiplicateur rang (phase éliminatoire uniquement)
+        if (knockoutBonus && p.user_id && p.league_id) {
+          const rank = rankSnapshot.get(`${p.league_id}:${p.user_id}`) ?? 1;
+          const mult = getMultiplier(rank);
+          total = Math.round(total * mult * 10) / 10;
+        }
+
         await supabase
           .from("predictions")
-          .update({ points_earned: pts + bonus, is_locked: true })
+          .update({ points_earned: total, is_locked: true })
           .eq("id", p.id);
 
         if (p.user_id && p.league_id) {
@@ -200,7 +219,25 @@ export async function POST(req: NextRequest) {
           .eq("prediction_id", predId);
         totalBonuses++;
       }
+
+      // Bonus courageux (phase éliminatoire uniquement)
+      if (knockoutBonus) {
+        applyCourageuxBonus(match.id, home_score, away_score, supabase).catch(() => {});
+      }
+
+      // Pronostics tournoi (demi-finalistes / vainqueur)
+      if (knockoutBonus) {
+        const isHomeWin = home_score > away_score;
+        const hasPenalties = match.penalty_winner != null;
+        const advancingTeam = hasPenalties
+          ? (match.penalty_winner === "home" ? match.home_team : match.away_team)
+          : (isHomeWin ? match.home_team : match.away_team);
+        scoreTournamentPredictions(match.stage, advancingTeam, supabase).catch(() => {});
+      }
     }
+
+    // ── Scorer la prédiction IA (GOAT IA) ────────────────────────────────
+    scoreAiPredictions(match.id, home_score, away_score, scorerIds).catch(() => {});
 
     report.push({
       status: "success",

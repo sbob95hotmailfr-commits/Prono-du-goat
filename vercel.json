@@ -6,6 +6,7 @@
     "app/api/cron/sync-live-scores/route.ts": { "maxDuration": 60 },
     "app/api/cron/send-results/route.ts": { "maxDuration": 60 },
     "app/api/cron/agent-sync/route.ts": { "maxDuration": 60 },
-    "app/api/cron/pending-matches/route.ts": { "maxDuration": 30 }
+    "app/api/cron/pending-matches/route.ts": { "maxDuration": 30 },
+    "app/api/cron/generate-ai-predictions/route.ts": { "maxDuration": 60 }
   }
 }
