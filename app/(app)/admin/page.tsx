@@ -97,6 +97,13 @@ export default async function AdminHubPage() {
             >
               ⚽ Saisie des scores
             </Link>
+            <Link
+              href="/admin/scorers"
+              className="inline-flex items-center gap-2 text-sm font-bold px-4 py-2 rounded-lg"
+              style={{ background: "rgba(0,166,80,0.15)", color: "#00A650", border: "1px solid rgba(0,166,80,0.3)" }}
+            >
+              🎯 Saisie des buteurs
+            </Link>
           </div>
         </div>
 
