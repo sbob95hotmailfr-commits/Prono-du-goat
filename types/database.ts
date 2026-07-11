@@ -88,6 +88,7 @@ export interface Database {
           api_football_fixture_id: number | null;
           minute: number | null;
           last_synced_at: string | null;
+          match_num: number | null;
         };
         Insert: {
           id?: string;
@@ -104,6 +105,7 @@ export interface Database {
           api_football_fixture_id?: number | null;
           minute?: number | null;
           last_synced_at?: string | null;
+          match_num?: number | null;
         };
         Update: {
           id?: string;
@@ -120,6 +122,7 @@ export interface Database {
           api_football_fixture_id?: number | null;
           minute?: number | null;
           last_synced_at?: string | null;
+          match_num?: number | null;
         };
       };
       predictions: {

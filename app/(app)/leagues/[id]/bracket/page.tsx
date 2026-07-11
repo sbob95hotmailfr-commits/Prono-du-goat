@@ -128,6 +128,14 @@ export default async function BracketPage({ params }: { params: Promise<{ id: st
     }
   }
 
+  // Trier chaque phase par match_num si disponible, sinon par kickoff_at
+  for (const stage of Object.keys(byStage)) {
+    byStage[stage].sort((a: any, b: any) => {
+      if (a.match_num != null && b.match_num != null) return a.match_num - b.match_num;
+      return new Date(a.kickoff_at).getTime() - new Date(b.kickoff_at).getTime();
+    });
+  }
+
   const hasKnockout = knockoutMatches.length > 0;
 
   // Dates officielles phases (UTC)
