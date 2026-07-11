@@ -124,9 +124,9 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Sauvegarder les buteurs réels dans match_scorers en parallèle
-    await adminSupabase.from("match_scorers").delete().eq("match_id", m.id);
+    // Sauvegarder les buteurs réels dans match_scorers — ne supprimer que si l'API retourne des données
     if (realScorerDbIds.length > 0) {
+      await adminSupabase.from("match_scorers").delete().eq("match_id", m.id);
       await Promise.all(
         realScorerDbIds.map((playerId) =>
           adminSupabase.from("match_scorers").insert({ match_id: m.id, player_id: playerId })
