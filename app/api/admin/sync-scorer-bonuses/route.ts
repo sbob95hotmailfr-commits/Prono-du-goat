@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
       .map((g: any) => Number(g.scorer.id));
 
     // Mapper vers les IDs joueurs en DB (conserver doublons pour hat-trick)
-    const realScorerDbIds: string[] = scorerApiIds
+    const realScorerDbIdsFromApi: string[] = scorerApiIds
       .map((id) => apiToDb.get(id))
       .filter((id): id is string => Boolean(id));
 
@@ -124,14 +124,23 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    // Sauvegarder les buteurs réels dans match_scorers — ne supprimer que si l'API retourne des données
-    if (realScorerDbIds.length > 0) {
+    // Si l'API retourne des buteurs → les sauvegarder dans match_scorers et les utiliser
+    // Sinon → lire les buteurs insérés manuellement dans match_scorers (fallback)
+    let realScorerDbIds: string[];
+    if (realScorerDbIdsFromApi.length > 0) {
       await adminSupabase.from("match_scorers").delete().eq("match_id", m.id);
       await Promise.all(
-        realScorerDbIds.map((playerId) =>
+        realScorerDbIdsFromApi.map((playerId) =>
           adminSupabase.from("match_scorers").insert({ match_id: m.id, player_id: playerId })
         )
       );
+      realScorerDbIds = realScorerDbIdsFromApi;
+    } else {
+      const { data: manualScorers } = await adminSupabase
+        .from("match_scorers")
+        .select("player_id")
+        .eq("match_id", m.id);
+      realScorerDbIds = (manualScorers ?? []).map((s: any) => s.player_id as string);
     }
 
     // Récupérer toutes les prédictions + pronostics buteur en parallèle
