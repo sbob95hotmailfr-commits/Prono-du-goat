@@ -34,7 +34,7 @@ export default async function AdminScorersPage() {
       .order("name", { ascending: true }),
     admin
       .from("match_scorers")
-      .select("match_id, player_id"),
+      .select("match_id, player_id") as any,
   ]);
 
   // Grouper les buteurs par match_id
