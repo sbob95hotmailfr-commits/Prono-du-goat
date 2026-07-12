@@ -83,7 +83,8 @@ Règles strictes :
     content = message.content[0].type === "text" ? message.content[0].text : "";
     if (!content) throw new Error("Réponse vide");
   } catch (e: any) {
-    return NextResponse.json({ error: "Analyse impossible pour le moment, réessaie dans quelques secondes." }, { status: 500 });
+    console.error("[prematch] Anthropic error:", e?.status, e?.message, e?.error);
+    return NextResponse.json({ error: `Erreur API: ${e?.message ?? e}` }, { status: 500 });
   }
 
   // Sauvegarde en cache

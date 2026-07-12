@@ -88,7 +88,8 @@ Ton fun, complice, comme dans un groupe WhatsApp de potes foot. En français.`;
     content = message.content[0].type === "text" ? message.content[0].text : "";
     if (!content) throw new Error("Réponse vide");
   } catch (e: any) {
-    return NextResponse.json({ error: "Débrief impossible pour le moment, réessaie dans quelques secondes." }, { status: 500 });
+    console.error("[debrief] Anthropic error:", e?.status, e?.message, e?.error);
+    return NextResponse.json({ error: `Erreur API: ${e?.message ?? e}` }, { status: 500 });
   }
 
   await admin.from("match_ai_analyses").upsert(
