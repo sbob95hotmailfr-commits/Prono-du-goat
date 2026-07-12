@@ -9,6 +9,7 @@ import { ScorerForm } from "@/components/scorer-form";
 import { ConfettiClient } from "@/components/confetti-client";
 import { FlagImage } from "@/components/flag-image";
 import { AiMatchCard } from "@/components/ai-match-card";
+import { MatchSocial } from "@/components/match-social";
 import type { Prediction } from "@/types/database";
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string; matchId: string }> }) {
@@ -257,6 +258,11 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             currentScorers={currentScorers}
             locked={locked ?? false}
           />
+        )}
+
+        {/* Réactions & Commentaires — visible après verrouillage */}
+        {(locked || finished) && (
+          <MatchSocial matchId={matchId} leagueId={id} currentUserId={user.id} />
         )}
 
         {/* Agent IA pré-match (avant le coup d'envoi) */}
