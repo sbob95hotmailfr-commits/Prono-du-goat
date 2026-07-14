@@ -1,8 +1,9 @@
 // @ts-nocheck
+export const dynamic = "force-dynamic";
 import nacl from "tweetnacl";
 import { NextRequest, NextResponse } from "next/server";
 import { buildStandingsEmbed } from "@/lib/discord";
-import { createClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 
 function verifySignature(body: string, signature: string, timestamp: string): boolean {
@@ -19,12 +20,6 @@ function verifySignature(body: string, signature: string, timestamp: string): bo
   }
 }
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -47,7 +42,7 @@ export async function POST(req: NextRequest) {
       (interaction.data?.options ?? []).map((o: any) => [o.name, o.value])
     );
 
-    const supabase = getSupabase();
+    const supabase = createAdminClient();
 
     // ── /prochain-match ──────────────────────────────────────────────────────
     if (name === "prochain-match") {
@@ -86,9 +81,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ type: 4, data: { content: `❌ Ligue introuvable avec le code **${code}**.`, flags: 64 } });
       }
 
-      const { data: standings } = await supabase
-        .from("league_standings").select("username, total_points")
-        .eq("league_id", league.id).order("total_points", { ascending: false }) as any;
+      const { data: members } = await supabase
+        .from("league_members").select("user_id, total_points")
+        .eq("league_id", league.id).order("total_points", { ascending: false }).limit(10) as any;
+
+      const memberIds = (members ?? []).map((m: any) => m.user_id);
+      const { data: memberProfiles } = await supabase
+        .from("profiles").select("id, username").in("id", memberIds) as any;
+      const memberMap = Object.fromEntries((memberProfiles ?? []).map((p: any) => [p.id, p.username]));
+      const standings = (members ?? []).map((m: any) => ({
+        username: memberMap[m.user_id] ?? "?",
+        total_points: m.total_points ?? 0,
+      }));
 
       const { data: aiPreds } = await supabase
         .from("ai_match_predictions").select("points_earned") as any;
@@ -96,7 +100,7 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         type: 4,
-        data: { embeds: [buildStandingsEmbed(league.name, standings ?? [], aiPts)] },
+        data: { embeds: [buildStandingsEmbed(league.name, standings, aiPts)] },
       });
     }
 
@@ -111,12 +115,22 @@ export async function POST(req: NextRequest) {
       }
 
       const matchNum = options.match;
-      let matchQuery = supabase.from("matches")
-        .select("id, home_team, away_team, home_score, away_score, stage")
-        .eq("status", "finished").order("kickoff_at", { ascending: false });
-      matchQuery = matchNum ? matchQuery.limit(matchNum) : matchQuery.limit(1);
-      const { data: matchesResult } = await matchQuery as any;
-      const match = matchesResult?.[matchNum ? matchNum - 1 : 0];
+      let match: any = null;
+      if (matchNum && matchNum > 0) {
+        // Nième match terminé (ordre chronologique)
+        const { data: matchesResult } = await supabase.from("matches")
+          .select("id, home_team, away_team, home_score, away_score, stage")
+          .eq("status", "finished").order("kickoff_at", { ascending: true })
+          .range(matchNum - 1, matchNum - 1) as any;
+        match = matchesResult?.[0];
+      } else {
+        // Dernier match terminé
+        const { data: matchesResult } = await supabase.from("matches")
+          .select("id, home_team, away_team, home_score, away_score, stage")
+          .eq("status", "finished").order("kickoff_at", { ascending: false })
+          .limit(1) as any;
+        match = matchesResult?.[0];
+      }
 
       if (!match) {
         return NextResponse.json({ type: 4, data: { content: "Aucun match terminé trouvé.", flags: 64 } });

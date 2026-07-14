@@ -9,6 +9,7 @@ import { checkAndAwardBadges } from "@/lib/badges";
 import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions } from "@/lib/phase-finale";
 import { scoreAiPredictions } from "@/lib/ai-predictor";
 import { generateAutoDebriefs } from "@/lib/auto-debrief";
+import { sendEmbed, buildResultEmbed } from "@/lib/discord";
 
 // ─── Normalisation des noms ────────────────────────────────────────────────
 function norm(s: string): string {
@@ -242,6 +243,28 @@ export async function POST(req: NextRequest) {
 
     // ── Débrief automatique post-match ───────────────────────────────────
     generateAutoDebriefs(match.id, supabase).catch(() => {});
+
+    // ── Résultat Discord ─────────────────────────────────────────────────
+    const discordChannel = process.env.DISCORD_RESULTS_CHANNEL_ID;
+    if (discordChannel && process.env.DISCORD_BOT_TOKEN) {
+      (async () => {
+        try {
+          const { data: scoredPreds } = await supabase
+            .from("predictions")
+            .select("home_score_pred, away_score_pred, points_earned, user_id")
+            .eq("match_id", match.id)
+            .not("points_earned", "is", null)
+            .order("points_earned", { ascending: false })
+            .limit(5);
+          if (!scoredPreds?.length) return;
+          const uids = scoredPreds.map((p: any) => p.user_id);
+          const { data: profs } = await supabase.from("profiles").select("id, username").in("id", uids);
+          const pm = Object.fromEntries((profs ?? []).map((p: any) => [p.id, p.username]));
+          const topPreds = scoredPreds.map((p: any) => ({ ...p, username: pm[p.user_id] ?? "?" }));
+          await sendEmbed(discordChannel, buildResultEmbed({ ...match, home_score, away_score }, topPreds));
+        } catch {}
+      })();
+    }
 
     report.push({
       status: "success",
