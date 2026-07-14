@@ -8,6 +8,7 @@ import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 import { checkAndAwardBadges } from "@/lib/badges";
 import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions } from "@/lib/phase-finale";
 import { scoreAiPredictions } from "@/lib/ai-predictor";
+import { generateAutoDebriefs } from "@/lib/auto-debrief";
 
 // ─── Normalisation des noms ────────────────────────────────────────────────
 function norm(s: string): string {
@@ -238,6 +239,9 @@ export async function POST(req: NextRequest) {
 
     // ── Scorer la prédiction IA (GOAT IA) ────────────────────────────────
     scoreAiPredictions(match.id, home_score, away_score, scorerIds).catch(() => {});
+
+    // ── Débrief automatique post-match ───────────────────────────────────
+    generateAutoDebriefs(match.id, supabase).catch(() => {});
 
     report.push({
       status: "success",

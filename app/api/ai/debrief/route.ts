@@ -16,15 +16,24 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Cache existant
-  const { data: existing } = await admin
+  // Cache existant — chercher d'abord le débrief spécifique à la ligue (auto-généré), puis le générique
+  const { data: existingLeague } = await admin
+    .from("match_ai_analyses")
+    .select("content")
+    .eq("match_id", matchId)
+    .eq("type", `debrief_${leagueId}`)
+    .maybeSingle();
+
+  if (existingLeague) return NextResponse.json({ content: existingLeague.content });
+
+  const { data: existingGeneric } = await admin
     .from("match_ai_analyses")
     .select("content")
     .eq("match_id", matchId)
     .eq("type", "debrief")
-    .single();
+    .maybeSingle();
 
-  if (existing) return NextResponse.json({ content: existing.content });
+  if (existingGeneric) return NextResponse.json({ content: existingGeneric.content });
 
   // Données du match
   const { data: match } = await admin
@@ -93,7 +102,7 @@ Ton fun, complice, comme dans un groupe WhatsApp de potes foot. En français.`;
   }
 
   await admin.from("match_ai_analyses").upsert(
-    { match_id: matchId, type: "debrief", content },
+    { match_id: matchId, type: `debrief_${leagueId}`, content },
     { onConflict: "match_id,type" }
   );
 

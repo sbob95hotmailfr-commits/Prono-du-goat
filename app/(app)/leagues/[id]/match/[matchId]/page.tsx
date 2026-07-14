@@ -10,6 +10,7 @@ import { ConfettiClient } from "@/components/confetti-client";
 import { FlagImage } from "@/components/flag-image";
 import { AiMatchCard } from "@/components/ai-match-card";
 import { MatchSocial } from "@/components/match-social";
+import { ShareMatchButton } from "@/components/share-match-button";
 import type { Prediction } from "@/types/database";
 
 export default async function MatchPage({ params }: { params: Promise<{ id: string; matchId: string }> }) {
@@ -63,10 +64,14 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
     .from("match_ai_analyses")
     .select("type, content")
     .eq("match_id", matchId)
-    .in("type", ["prematch", "debrief"]) as any;
+    .in("type", ["prematch", "debrief", `debrief_${id}`]) as any;
 
   const prematchAnalysis = (aiAnalysis ?? []).find((a: any) => a.type === "prematch")?.content ?? null;
-  const debriefAnalysis = (aiAnalysis ?? []).find((a: any) => a.type === "debrief")?.content ?? null;
+  // Priorité au débrief spécifique à la ligue (auto-généré), sinon débrief générique
+  const debriefAnalysis =
+    (aiAnalysis ?? []).find((a: any) => a.type === `debrief_${id}`)?.content ??
+    (aiAnalysis ?? []).find((a: any) => a.type === "debrief")?.content ??
+    null;
 
   // Pronostic IA (visible après verrouillage)
   let aiPrediction: any = null;
@@ -257,6 +262,17 @@ export default async function MatchPage({ params }: { params: Promise<{ id: stri
             awayGoals={prediction.away_score_pred ?? 0}
             currentScorers={currentScorers}
             locked={locked ?? false}
+          />
+        )}
+
+        {/* Bouton partager — visible après le match si l'user a pronostiqué */}
+        {finished && prediction && (
+          <ShareMatchButton
+            matchId={matchId}
+            leagueId={id}
+            userId={user.id}
+            homeTeam={m.home_team}
+            awayTeam={m.away_team}
           />
         )}
 
