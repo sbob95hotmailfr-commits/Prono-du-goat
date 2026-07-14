@@ -6,7 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { calculatePoints, calculateScorerBonusMulti } from "@/lib/points";
 import { checkAndAwardBadges } from "@/lib/badges";
-import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions } from "@/lib/phase-finale";
+import { isKnockoutBonus, getMultiplier, getRankSnapshot, applyCourageuxBonus, scoreTournamentPredictions, propagateBracket } from "@/lib/phase-finale";
 import { scoreAiPredictions } from "@/lib/ai-predictor";
 import { generateAutoDebriefs } from "@/lib/auto-debrief";
 import { sendEmbed, buildResultEmbed } from "@/lib/discord";
@@ -235,6 +235,24 @@ export async function POST(req: NextRequest) {
           ? (match.penalty_winner === "home" ? match.home_team : match.away_team)
           : (isHomeWin ? match.home_team : match.away_team);
         scoreTournamentPredictions(match.stage, advancingTeam, supabase).catch(() => {});
+      }
+    }
+
+    // ── Propagation bracket (vainqueur → tour suivant, perdant → 3ème place) ─
+    if (isKnockoutBonus(match.stage ?? "")) {
+      // Calculer le slot du match dans sa phase (ordre chronologique)
+      const { data: stageMatches } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("stage", match.stage)
+        .order("kickoff_at", { ascending: true });
+      const slot = (stageMatches ?? []).findIndex((m: any) => m.id === match.id) + 1;
+      if (slot > 0) {
+        propagateBracket(
+          { ...match, home_score, away_score },
+          slot,
+          supabase
+        ).catch(() => {});
       }
     }
 

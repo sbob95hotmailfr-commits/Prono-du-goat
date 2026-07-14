@@ -1,5 +1,48 @@
 // @ts-nocheck
 
+// Mapping vainqueur : stage source → stage destination + préfixe placeholder
+const WINNER_PROPAGATION: Record<string, { nextStage: string; prefix: string }> = {
+  "Seizièmes de finale": { nextStage: "Huitièmes de finale", prefix: "Vainqueur HF" },
+  "Huitièmes de finale": { nextStage: "Quarts de finale", prefix: "Vainqueur QF" },
+  "Quarts de finale": { nextStage: "Demi-finales", prefix: "Vainqueur DF" },
+  "Demi-finales": { nextStage: "Finale", prefix: "Vainqueur F" },
+};
+// Mapping perdant : seules les demi-finales → 3ème place
+const LOSER_PROPAGATION: Record<string, { nextStage: string; prefix: string }> = {
+  "Demi-finales": { nextStage: "3ème place", prefix: "Perdant DF" },
+};
+
+// Propage le vainqueur ET le perdant d'un match terminé dans le bracket
+export async function propagateBracket(
+  match: { id: string; stage: string; home_team: string; away_team: string; home_flag?: string; away_flag?: string; home_score: number; away_score: number; penalty_winner?: string | null },
+  slot: number,
+  supabase: any
+): Promise<void> {
+  const isHomeWin =
+    match.penalty_winner === "home" ||
+    (!match.penalty_winner && match.home_score > match.away_score);
+  const winner = isHomeWin ? match.home_team : match.away_team;
+  const winnerFlag = isHomeWin ? match.home_flag : match.away_flag;
+  const loser = isHomeWin ? match.away_team : match.home_team;
+  const loserFlag = isHomeWin ? match.away_flag : match.home_flag;
+
+  // Propager vainqueur
+  const wp = WINNER_PROPAGATION[match.stage];
+  if (wp && winner && !winner.startsWith("Vainqueur")) {
+    const ph = `${wp.prefix}${slot}`;
+    await supabase.from("matches").update({ home_team: winner, home_flag: winnerFlag ?? "🏳️" }).eq("stage", wp.nextStage).eq("home_team", ph);
+    await supabase.from("matches").update({ away_team: winner, away_flag: winnerFlag ?? "🏳️" }).eq("stage", wp.nextStage).eq("away_team", ph);
+  }
+
+  // Propager perdant (3ème place)
+  const lp = LOSER_PROPAGATION[match.stage];
+  if (lp && loser && !loser.startsWith("Perdant") && !loser.startsWith("Vainqueur")) {
+    const ph = `${lp.prefix}${slot}`;
+    await supabase.from("matches").update({ home_team: loser, home_flag: loserFlag ?? "🏳️" }).eq("stage", lp.nextStage).eq("home_team", ph);
+    await supabase.from("matches").update({ away_team: loser, away_flag: loserFlag ?? "🏳️" }).eq("stage", lp.nextStage).eq("away_team", ph);
+  }
+}
+
 // Stages éligibles au multiplicateur (QF, SF, Finale)
 export function isKnockoutBonus(stage: string): boolean {
   return /quart|demi|finale/i.test(stage);

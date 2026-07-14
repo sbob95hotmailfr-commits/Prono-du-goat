@@ -14,6 +14,13 @@ const PLACEHOLDER_PREFIX: Record<string, string> = {
   "Quarts de finale": "DF",
   "Demi-finales": "F",
 };
+// Perdants des demi-finales → 3ème place
+const LOSER_STAGE: Partial<Record<string, string>> = {
+  "Demi-finales": "3ème place",
+};
+const LOSER_PLACEHOLDER_PREFIX: Partial<Record<string, string>> = {
+  "Demi-finales": "Perdant DF",
+};
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -71,6 +78,35 @@ export async function POST(req: NextRequest) {
 
       if ((updated1?.length ?? 0) + (updated2?.length ?? 0) > 0) {
         results.push({ stage, slot, placeholder, winner });
+      }
+
+      // Propagation du perdant (ex: Demi-finales → 3ème place)
+      const loserStage = LOSER_STAGE[stage];
+      const loserPrefix = LOSER_PLACEHOLDER_PREFIX[stage];
+      if (loserStage && loserPrefix) {
+        const loser = isHomeWin ? m.away_team : m.home_team;
+        const loserFlag = isHomeWin ? m.away_flag : m.home_flag;
+        const loserPlaceholder = `${loserPrefix}${slot}`;
+
+        if (loser && !loser.startsWith("Perdant") && !loser.startsWith("Vainqueur")) {
+          const { data: lu1 } = await admin
+            .from("matches")
+            .update({ home_team: loser, home_flag: loserFlag ?? "🏳️" })
+            .eq("stage", loserStage)
+            .eq("home_team", loserPlaceholder)
+            .select("id");
+
+          const { data: lu2 } = await admin
+            .from("matches")
+            .update({ away_team: loser, away_flag: loserFlag ?? "🏳️" })
+            .eq("stage", loserStage)
+            .eq("away_team", loserPlaceholder)
+            .select("id");
+
+          if ((lu1?.length ?? 0) + (lu2?.length ?? 0) > 0) {
+            results.push({ stage, slot, placeholder: loserPlaceholder, loser });
+          }
+        }
       }
     }
   }
